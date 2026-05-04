@@ -6,11 +6,12 @@ import Image from "next/image";
 import { ProfileForm } from "@/components/forms/ProfileForm";
 import { DangerZone } from "@/components/forms/DangerZone";
 import { StudentCertificatesSection } from "@/components/student/StudentCertificatesSection";
+import { SubscriptionSection } from "@/components/student/SubscriptionSection";
 import { getStudentCertificates } from "@/modules/certificates/infrastructure/certificate-service";
 import { getInitials } from "@/lib/utils";
 import {
   User, Shield, CheckCircle, AlertTriangle,
-  BookOpen, Brain, LogOut,
+  Brain,
 } from "lucide-react";
 
 export const metadata: Metadata = { title: "Тохиргоо — EduNity" };
@@ -19,7 +20,7 @@ export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const [user, certificates] = await Promise.all([
+  const [user, certificates, subscription] = await Promise.all([
     db.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -31,6 +32,10 @@ export default async function SettingsPage() {
     getStudentCertificates(session.user.id).catch(
       () => [] as Awaited<ReturnType<typeof getStudentCertificates>>,
     ),
+    db.subscription.findUnique({
+      where: { userId: session.user.id },
+      select: { plan: true, status: true, currentPeriodEnd: true },
+    }).catch(() => null),
   ]);
   if (!user) redirect("/login");
 
@@ -89,7 +94,7 @@ export default async function SettingsPage() {
               {/* Speech bubble */}
               <div className="absolute -top-10 -left-28 w-48 bg-white rounded-2xl border border-[#E9DFFF] px-3 py-2 shadow-md">
                 <p className="text-[11px] text-[#111827] font-medium leading-tight">
-                  Профайлаа бүрэн болговол XP авна! ✨
+                  Профайлаа бүрэн болговол XP авна!
                 </p>
                 <div className="absolute -bottom-2 right-8 w-3 h-3 bg-white border-r border-b border-[#E9DFFF] rotate-45" />
               </div>
@@ -179,6 +184,13 @@ export default async function SettingsPage() {
           />
         </div>
       </section>
+
+      {/* ── SUBSCRIPTION ── */}
+      <SubscriptionSection subscription={subscription ? {
+        plan: subscription.plan,
+        status: subscription.status,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+      } : null} />
 
       {/* ── CERTIFICATES ── */}
       <StudentCertificatesSection certificates={certificates} />

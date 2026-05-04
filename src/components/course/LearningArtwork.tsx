@@ -92,7 +92,7 @@ interface LearningArtworkProps {
 export function LearningArtwork({
   title,
   subtitle,
-  badge = "Course",
+  badge = "Курс",
   className,
   compact = false,
   icon: IconOverride,

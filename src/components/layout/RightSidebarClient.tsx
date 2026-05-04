@@ -114,7 +114,7 @@ export function RightSidebarClient({
   return (
     <aside
       className={cn(
-        "relative flex h-full flex-shrink-0 flex-col border-l border-border bg-card transition-all duration-150 ease-in-out",
+        "relative hidden lg:flex h-full flex-shrink-0 flex-col border-l border-border bg-card transition-all duration-150 ease-in-out",
         collapsed ? "w-[52px]" : "w-[290px]",
       )}
     >
@@ -184,9 +184,9 @@ export function RightSidebarClient({
               {/* Stats grid */}
               <div className="grid grid-cols-3 gap-1.5">
                 {[
-                  { icon: Flame,  value: user.streak,              label: "Streak", cls: "fill-orange-500 text-orange-500" },
-                  { icon: Target, value: goalsThisMonth,           label: "Goals",  cls: "text-primary" },
-                  { icon: Trophy, value: leaderboard?.rank ?? "-", label: "Rank",   cls: "text-amber-500" },
+                  { icon: Flame,  value: user.streak,              label: "Дараалал", cls: "fill-orange-500 text-orange-500" },
+                  { icon: Target, value: goalsThisMonth,           label: "Зорилго", cls: "text-primary" },
+                  { icon: Trophy, value: leaderboard?.rank ?? "-", label: "Эрэмбэ",  cls: "text-amber-500" },
                 ].map(stat => (
                   <div
                     key={stat.label}

@@ -7,6 +7,7 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { DashboardTopbar } from "@/components/layout/DashboardTopbar";
 import { RightSidebar } from "@/components/layout/RightSidebar";
 import { RoboAgent } from "@/components/ai/RoboAgent";
+import { DashboardLayoutClient } from "@/components/layout/DashboardLayoutClient";
 import { dashboardCacheTags } from "@/lib/dashboard-cache";
 
 const getCachedUser = (userId: string) =>
@@ -45,7 +46,7 @@ const getCachedUnreads = (userId: string, isStudent: boolean) =>
 
 function RightSidebarSkeleton() {
   return (
-    <aside className="hidden h-full w-[290px] shrink-0 border-l border-border bg-card p-4 lg:block">
+    <aside className="hidden lg:block h-full w-[290px] shrink-0 border-l border-border bg-card p-4">
       <div className="space-y-3">
         <div className="h-32 animate-pulse rounded-2xl bg-muted" />
         <div className="h-28 animate-pulse rounded-2xl bg-muted" />
@@ -66,31 +67,42 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   ]);
 
   return (
-    <div className="flex h-screen bg-[#f5f3ff] dark:bg-[#09090b] overflow-hidden">
-      <DashboardSidebar
-        role={session.user.role}
-        xp={user?.xp ?? 0}
-        level={user?.level ?? 1}
-        streak={user?.streak ?? 0}
-        subscriptionPlan={user?.subscription?.plan ?? null}
-        messagesBadge={unreads.messages}
-      />
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <DashboardTopbar user={session.user} unreadNotifications={unreads.notifications} />
-        <div className="flex flex-1 overflow-hidden">
-          <main className="flex-1 overflow-y-auto">
-            <div className="mx-auto px-5 py-5">
-              {children}
-            </div>
-          </main>
-          {isStudent && (
-            <Suspense fallback={<RightSidebarSkeleton />}>
-              <RightSidebar userId={session.user.id} />
-            </Suspense>
-          )}
+    <DashboardLayoutClient>
+      <div className="flex h-screen bg-[#f5f3ff] dark:bg-[#09090b] overflow-hidden">
+        <DashboardSidebar
+          role={session.user.role}
+          xp={user?.xp ?? 0}
+          level={user?.level ?? 1}
+          streak={user?.streak ?? 0}
+          subscriptionPlan={user?.subscription?.plan ?? null}
+          messagesBadge={unreads.messages}
+          userName={session.user.name ?? ""}
+          userAvatar={session.user.image ?? null}
+        />
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          <DashboardTopbar user={session.user} unreadNotifications={unreads.notifications} />
+          <div className="flex flex-1 overflow-hidden">
+            <main className="flex-1 overflow-y-auto">
+              <div className="mx-auto px-4 py-4 sm:px-5 sm:py-5">
+                {children}
+              </div>
+            </main>
+            {isStudent && (
+              <Suspense fallback={<RightSidebarSkeleton />}>
+                <RightSidebar userId={session.user.id} />
+              </Suspense>
+            )}
+          </div>
         </div>
+        {isStudent && (
+          <RoboAgent
+            firstName={session.user.name?.split(" ")[0] ?? "Student"}
+            level={user?.level ?? 1}
+            xp={user?.xp ?? 0}
+            streak={user?.streak ?? 0}
+          />
+        )}
       </div>
-      {isStudent && <RoboAgent firstName={session.user.name?.split(" ")[0] ?? "Student"} />}
-    </div>
+    </DashboardLayoutClient>
   );
 }

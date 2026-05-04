@@ -56,7 +56,7 @@ export async function RightSidebar({ userId }: { userId: string }) {
 
   const today = new Date();
   const dayOfWeek = today.getDay();
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const days = ["Ня", "Да", "Мя", "Лх", "Пү", "Ба", "Бя"];
   const activeDayIndices =
     user.streak > 0
       ? Array.from({ length: Math.min(user.streak, 7) }, (_, i) => (dayOfWeek - i + 7) % 7)

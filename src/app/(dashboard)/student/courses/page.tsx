@@ -46,21 +46,58 @@ export default async function StudentCoursesPage({ searchParams }: PageProps) {
   const sp = await searchParams;
   const filter = (sp.filter ?? "all") as FilterValue;
 
-  const [enrollments, progressMap, userProfile, recommendedResult] = await Promise.all([
+  const [enrollments, progressMap, lessonCountsRaw, userProfile, recommendedResult, lastViewedProgress] = await Promise.all([
     getStudentEnrolledCourses(session.user.id),
     db.progress.groupBy({
       by: ["courseId"],
       where: { studentId: session.user.id, isCompleted: true },
       _count: true,
     }),
+    db.courseModule.findMany({
+      where: { course: { enrollments: { some: { studentId: session.user.id } } } },
+      select: { courseId: true, _count: { select: { lessons: true } } },
+    }),
     db.user.findUnique({
       where: { id: session.user.id },
       select: { streak: true, name: true },
     }),
     getCourses({ status: "PUBLISHED", limit: 4, sortBy: "popular" }).catch(() => ({ courses: [] })),
+    db.progress.findMany({
+      where: { studentId: session.user.id },
+      orderBy: { lastAccessedAt: "desc" },
+      take: 5,
+      distinct: ["courseId"],
+      select: {
+        courseId: true,
+        lessonId: true,
+        lastAccessedAt: true,
+        lesson: {
+          select: {
+            id: true,
+            title: true,
+            module: {
+              select: {
+                course: {
+                  select: {
+                    id: true,
+                    title: true,
+                    thumbnailUrl: true,
+                    instructor: { select: { name: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }).catch(() => []),
   ]);
 
   const progressLookup = new Map(progressMap.map((p) => [p.courseId, p._count]));
+  const totalLessonsMap = new Map<string, number>();
+  lessonCountsRaw.forEach((m) => {
+    totalLessonsMap.set(m.courseId, (totalLessonsMap.get(m.courseId) ?? 0) + m._count.lessons);
+  });
   const active    = enrollments.filter((e) => e.status !== "COMPLETED");
   const completed = enrollments.filter((e) => e.status === "COMPLETED");
   const totalDone = progressMap.reduce((sum, p) => sum + p._count, 0);
@@ -94,10 +131,10 @@ export default async function StudentCoursesPage({ searchParams }: PageProps) {
         <div className="absolute left-[-16px] bottom-[-16px] h-40 w-40 rounded-full bg-fuchsia-200/25 dark:bg-fuchsia-900/10 blur-[56px] pointer-events-none" />
 
         {/* ── Left content ── */}
-        <div className="relative z-10 px-7 py-6 sm:pr-[200px]" style={{ minHeight: 172 }}>
+        <div className="relative z-10 px-5 py-5 sm:px-7 sm:py-6 sm:pr-[200px]">
           {/* "+ Курс нэмэх" button top-right (inside hero, before mascot area) */}
           <Link
-            href="/courses"
+            href="/student/catalog"
             className="absolute top-5 right-5 sm:right-[210px] hidden sm:inline-flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-[13px] font-bold rounded-2xl transition-colors shadow-[0_4px_14px_rgba(124,58,237,0.32)]"
           >
             <Plus size={13} /> Курс нэмэх
@@ -106,7 +143,7 @@ export default async function StudentCoursesPage({ searchParams }: PageProps) {
           <p className="text-[10px] font-bold text-violet-500 dark:text-violet-400 uppercase tracking-[0.2em] mb-1">
             Хичээлүүд
           </p>
-          <h1 className="text-[26px] font-black text-[#111827] dark:text-[#F8FAFC] tracking-tight leading-tight mb-1">
+          <h1 className="text-[22px] sm:text-[26px] font-black text-[#111827] dark:text-[#F8FAFC] tracking-tight leading-tight mb-1">
             Миний курсууд
           </h1>
           <p className="text-sm text-[#6B7280] dark:text-[#A1A1AA] mb-5">
@@ -158,7 +195,7 @@ export default async function StudentCoursesPage({ searchParams }: PageProps) {
           {/* Speech bubble */}
           <div className="relative mb-1.5 w-[152px] rounded-2xl rounded-br-sm bg-white dark:bg-[#1C142B] px-3.5 py-2.5 shadow-[0_4px_18px_rgba(124,58,237,0.14)] border border-[#E9DFFF] dark:border-[#2E2146]">
             <p className="text-[11px] font-bold text-[#111827] dark:text-[#F8FAFC] leading-snug">
-              Өнөөдөр нэг<br />хичээл дуусгая! 📚
+              Өнөөдөр нэг<br />хичээл дуусгая!
             </p>
             <div className="absolute -bottom-[6px] right-5 h-0 w-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-white dark:border-t-[#1C142B]" />
           </div>
@@ -186,6 +223,52 @@ export default async function StudentCoursesPage({ searchParams }: PageProps) {
         </div>
       </div>
 
+      {/* ── LAST VIEWED ──────────────────────────────────────────────── */}
+      {lastViewedProgress.length > 0 && filter === "all" && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-500/15">
+              <Clock size={12} className="text-amber-600 dark:text-amber-400" />
+            </div>
+            <h2 className="text-[11px] font-bold text-[#6B7280] dark:text-[#A1A1AA] uppercase tracking-[0.18em]">
+              Сүүлд үзсэн
+            </h2>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar">
+            {lastViewedProgress.map((p) => {
+              const course = p.lesson?.module?.course;
+              if (!course) return null;
+              return (
+                <Link
+                  key={p.lessonId}
+                  href={`/student/courses/${course.id}/learn?lessonId=${p.lessonId}`}
+                  className="group flex-shrink-0 w-[200px] bg-white dark:bg-[#1C142B] border border-[#E9DFFF] dark:border-[#2E2146] rounded-2xl overflow-hidden hover:shadow-[0_4px_16px_rgba(124,58,237,0.10)] hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  <div className="h-[90px] relative overflow-hidden">
+                    {course.thumbnailUrl ? (
+                      <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ) : (
+                      <LearningArtwork title={course.title} compact className="h-full w-full" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/50 rounded-md px-1.5 py-0.5">
+                      <Clock size={9} className="text-white/80" />
+                      <span className="text-[9px] text-white/80 font-medium">
+                        {p.lastAccessedAt.toLocaleDateString("mn-MN")}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-2.5">
+                    <p className="text-[11px] font-bold text-[#111827] dark:text-[#F8FAFC] line-clamp-1 mb-0.5">{course.title}</p>
+                    <p className="text-[10px] text-[#6B7280] dark:text-[#A1A1AA] line-clamp-1">{p.lesson?.title}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* ── MAIN CONTENT ─────────────────────────────────────────────── */}
       {enrollments.length === 0 ? (
         /* Empty state */
@@ -196,7 +279,7 @@ export default async function StudentCoursesPage({ searchParams }: PageProps) {
             Каталогоос сонирхолтой курс хайж бүртгүүлээрэй
           </p>
           <Link
-            href="/courses"
+            href="/student/catalog"
             className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-2xl transition-colors"
           >
             Курс хайх <ArrowRight size={13} />
@@ -213,9 +296,9 @@ export default async function StudentCoursesPage({ searchParams }: PageProps) {
 
               <div className="space-y-4">
                 {displayActive.map((enr, i) => {
-                  const total   = enr.course._count.modules;
+                  const total   = totalLessonsMap.get(enr.courseId) ?? 0;
                   const done    = progressLookup.get(enr.courseId) ?? 0;
-                  const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+                  const percent = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
 
                   /* ── First active course: wide layout + summary panel ── */
                   if (i === 0) {
@@ -224,9 +307,9 @@ export default async function StudentCoursesPage({ searchParams }: PageProps) {
 
                         {/* Wide active course card */}
                         <div className="group bg-white dark:bg-[#1C142B] border border-[#E9DFFF] dark:border-[#2E2146] rounded-2xl overflow-hidden hover:shadow-[0_8px_32px_rgba(124,58,237,0.10)] dark:hover:shadow-[0_8px_32px_rgba(167,139,250,0.07)] hover:-translate-y-0.5 transition-all duration-200">
-                          <div className="flex" style={{ minHeight: 184 }}>
+                          <div className="flex" style={{ minHeight: 140 }}>
                             {/* Gradient thumbnail */}
-                            <div className="w-[196px] shrink-0 relative overflow-hidden">
+                            <div className="w-[100px] sm:w-[196px] shrink-0 relative overflow-hidden">
                               {enr.course.thumbnailUrl ? (
                                 <img
                                   src={enr.course.thumbnailUrl}
@@ -247,7 +330,7 @@ export default async function StudentCoursesPage({ searchParams }: PageProps) {
                             <div className="flex-1 px-5 py-4 flex flex-col justify-between min-w-0">
                               <div>
                                 <span className="text-[10px] font-bold text-violet-500 dark:text-violet-400 uppercase tracking-widest">
-                                  Программчлал
+                                  {enr.course.category?.name ?? "Курс"}
                                 </span>
                                 <h3 className="font-black text-[#111827] dark:text-[#F8FAFC] text-[16px] leading-snug mt-0.5 mb-1 line-clamp-2">
                                   {enr.course.title}
@@ -285,7 +368,7 @@ export default async function StudentCoursesPage({ searchParams }: PageProps) {
                             <div className="hidden md:flex flex-col items-center justify-center px-4 pb-3 shrink-0 gap-2.5">
                               <div className="relative bg-violet-50 dark:bg-violet-500/10 rounded-2xl px-3 py-2.5 border border-violet-100 dark:border-violet-500/20 max-w-[118px] text-center">
                                 <p className="text-[10px] font-semibold text-[#6B7280] dark:text-[#A1A1AA] leading-relaxed">
-                                  Жаахан ахиц ч<br />том үр дүн шүү! 💪
+                                  Жаахан ахиц ч<br />том үр дүн шүү!
                                 </p>
                                 <div className="absolute -bottom-[6px] left-1/2 -translate-x-1/2 h-0 w-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-violet-50 dark:border-t-[#2d1f4a]" />
                               </div>

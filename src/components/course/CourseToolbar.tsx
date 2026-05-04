@@ -14,7 +14,7 @@ export function CourseToolbar({ courseTitle, categoryId, categoryName }: Props) 
   const router = useRouter();
 
   return (
-    <div className="bg-white/95 backdrop-blur-sm border-b border-[#E9DFFF] sticky top-[57px] z-40">
+<div className="bg-white/95 backdrop-blur-sm border-b border-[#E9DFFF] sticky top-16 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-11 flex items-center justify-between gap-4">
 
         {/* Left: back + breadcrumb */}
@@ -25,7 +25,7 @@ export function CourseToolbar({ courseTitle, categoryId, categoryName }: Props) 
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 rounded-lg hover:bg-[#F3EEFF] hover:text-violet-700 transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
           >
             <ArrowLeft size={14} />
-            <span className="hidden xs:inline">Буцах</span>
+            <span className="hidden sm:inline">Буцах</span>
           </button>
 
           <nav

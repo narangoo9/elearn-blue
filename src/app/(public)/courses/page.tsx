@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Search, Filter, BookOpen, Star, Users, Clock, Lock } from "lucide-react";
+import { Search, Filter, BookOpen, Star, Users, Clock } from "lucide-react";
 import { getCourses } from "@/modules/courses/infrastructure/queries";
 import { Badge } from "@/components/ui/index";
 import { formatDuration } from "@/lib/utils";
@@ -62,14 +62,14 @@ export default async function CoursesPage({ searchParams }: PageProps) {
       <Navbar />
 
       {/* Hero header */}
-      <div className="relative bg-gradient-to-br from-violet-950 via-purple-950 to-[#09090b] px-4 py-14 text-white overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage: "linear-gradient(rgba(139,92,246,1) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,1) 1px,transparent 1px)",
-            backgroundSize: "50px 50px",
-          }}
+      <div className="relative overflow-hidden px-4 py-14 text-white">
+        <img
+          src="/brand/course_header.png"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover"
         />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-violet-600/15 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute inset-0 bg-black/10" />
         <div className="relative mx-auto max-w-5xl text-center">
           <p className="text-violet-400 text-xs font-semibold tracking-widest uppercase mb-3">Каталог</p>
           <h1 className="mb-3 text-4xl font-black tracking-tight">Курс хайх</h1>
@@ -216,11 +216,7 @@ function CourseCard({ course }: { course: Awaited<ReturnType<typeof getCourses>>
           )}
         </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <span className="inline-flex items-center gap-1 text-sm font-bold text-violet-700 dark:text-violet-300">
-            <Lock size={12} />
-            Locked
-          </span>
+        <div className="flex items-center justify-end pt-3 border-t border-border">
           {course.category && (
             <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">{course.category.name}</span>
           )}

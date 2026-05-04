@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   BookOpen, Users, Award, BarChart3,
-  ArrowRight, Star, Zap, Globe, Lock,
+  ArrowRight, Star, Zap, Globe,
   CheckCircle2, Target, TrendingUp, Building2,
   GraduationCap, BadgeCheck, Rocket, ChevronRight, Quote, Brain, Play,
 } from "lucide-react";
@@ -11,6 +12,7 @@ import { getAdminOverview } from "@/modules/analytics/infrastructure/queries";
 import { Navbar } from "@/components/layout/Navbar";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { MascotImage, type MascotVariant } from "@/components/brand/MascotImage";
+import { auth } from "@/lib/auth";
 
 export const revalidate = 60;
 
@@ -22,6 +24,10 @@ export const metadata: Metadata = {
 const COURSE_MASCOTS: MascotVariant[] = ["book", "laptop", "certificate", "wave", "thinking", "celebrate"];
 
 export default async function HomePage() {
+  const session = await auth();
+  if (session?.user) {
+    redirect("/dashboard");
+  }
   const [courseListing, stats] = await Promise.all([
     getCourses({ limit: 6, sortBy: "popular" }).catch(() => null),
     getAdminOverview().catch(() => ({
@@ -33,8 +39,10 @@ export default async function HomePage() {
   const courses = courseListing?.courses ?? [];
   const catalogUnavailable = courseListing === null;
 
-  const displayCourses = stats.publishedCourses > 0 ? stats.publishedCourses : 32;
-  const displayCerts = stats.totalCertificates > 0 ? stats.totalCertificates : 120;
+  const displayCourses = stats.publishedCourses > 0 ? stats.publishedCourses : 8;
+  const displayStudents = stats.activeStudents > 0 ? stats.activeStudents : 260;
+  const displayCerts = stats.totalCertificates > 0 ? stats.totalCertificates : 45;
+  const displayEnrollments = stats.totalEnrollments > 0 ? stats.totalEnrollments : 140;
 
   return (
     <div className="min-h-screen bg-[#F7F4FF] dark:bg-[#0F0B1A] text-foreground overflow-x-hidden transition-colors duration-200">
@@ -125,7 +133,7 @@ export default async function HomePage() {
               {/* Speech bubble */}
               <div className="absolute -top-8 -left-4 sm:-left-16 lg:-left-24 z-20 w-[172px] rounded-2xl rounded-bl-sm bg-white dark:bg-[#1C142B] px-4 py-3 shadow-[0_8px_28px_rgba(124,58,237,0.16)] border border-[#E9DFFF] dark:border-[#2E2146]">
                 <p className="text-[12px] font-bold text-[#111827] dark:text-[#F8FAFC] leading-snug">
-                  Өнөөдөр шинэ чадвар суръя 🚀
+                  Өнөөдөр шинэ чадвар суръя
                 </p>
                 <div className="absolute -bottom-[7px] right-5 h-0 w-0 border-l-[7px] border-r-[7px] border-t-[7px] border-l-transparent border-r-transparent border-t-white dark:border-t-[#1C142B]" />
               </div>
@@ -147,10 +155,10 @@ export default async function HomePage() {
             style={{ animationDelay: "0.28s" }}
           >
             {[
-              { value: `${displayCourses}+`, label: "Бүх курс", color: "text-violet-600 dark:text-violet-400", bar: "bg-violet-100 dark:bg-violet-500/15", border: "border-violet-200/80 dark:border-[#2E2146]" },
-              { value: "8+", label: "Шилдэг багш", color: "text-emerald-600 dark:text-emerald-400", bar: "bg-white dark:bg-[#1C142B]", border: "border-emerald-200/60 dark:border-[#2E2146]" },
+              { value: `${displayCourses}+`, label: "Нийт курс", color: "text-violet-600 dark:text-violet-400", bar: "bg-violet-100 dark:bg-violet-500/15", border: "border-violet-200/80 dark:border-[#2E2146]" },
+              { value: `${displayStudents}+`, label: "Идэвхтэй оюутан", color: "text-emerald-600 dark:text-emerald-400", bar: "bg-white dark:bg-[#1C142B]", border: "border-emerald-200/60 dark:border-[#2E2146]" },
               { value: `${displayCerts}+`, label: "Сертификат олгосон", color: "text-amber-600 dark:text-amber-400", bar: "bg-white dark:bg-[#1C142B]", border: "border-amber-200/60 dark:border-[#2E2146]" },
-              { value: "50+", label: "Байгууллага", color: "text-cyan-600 dark:text-cyan-400", bar: "bg-white dark:bg-[#1C142B]", border: "border-cyan-200/60 dark:border-[#2E2146]" },
+              { value: `${displayEnrollments}+`, label: "Бүртгэл", color: "text-cyan-600 dark:text-cyan-400", bar: "bg-white dark:bg-[#1C142B]", border: "border-cyan-200/60 dark:border-[#2E2146]" },
             ].map((stat) => (
               <div
                 key={stat.label}
@@ -310,7 +318,7 @@ export default async function HomePage() {
                 label: "Суралцагч",
                 title: "Мэргэжлийг эзэм",
                 desc: "Хаанаас ч, хэзээ ч хичээллэж, ур чадвараа хөгжүүл",
-                features: ["500+ чанартай курс", "Ахиц хяналт & аналитик", "QR сертификат", "AI зөвлөгч"],
+                features: ["Бүх курс нэвтрэх эрх", "Ахиц хяналт & аналитик", "QR сертификат", "AI зөвлөгч"],
                 cta: "Эхлэх →",
                 href: "/courses",
                 featured: false,
@@ -443,8 +451,8 @@ export default async function HomePage() {
                         )}
                       </div>
                       <div className="flex items-center justify-between pt-3 border-t border-[#E9DFFF] dark:border-[#2E2146]">
-                        <span className="inline-flex items-center gap-1 text-sm font-bold text-violet-600 dark:text-violet-400">
-                          <Lock size={12} /> Locked
+                        <span className="text-sm font-bold text-violet-600 dark:text-violet-400">
+                          {Number(course.price) === 0 ? "Үнэгүй" : `${Number(course.price).toLocaleString()}₮`}
                         </span>
                         <span className="text-xs text-[#6B7280] dark:text-[#A1A1AA] bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 rounded-md border border-violet-100 dark:border-violet-500/15">
                           {course.category?.name ?? "Ерөнхий"}
@@ -767,7 +775,7 @@ export default async function HomePage() {
             <div>
               <p className="text-[#111827] dark:text-[#F8FAFC] text-xs font-bold uppercase tracking-widest mb-4">Компани</p>
               <ul className="space-y-2.5">
-                {[["Бидний тухай", "/"], ["Карьер", "/"], ["Нийтлэл", "/"], ["Холбоо барих", "/"]].map(([label, href]) => (
+                {[["Бидний тухай", "/#about"], ["Онцлог", "/#features"], ["Яаж ажилладаг вэ?", "/#how-it-works"], ["Үнэ тариф", "/pricing"]].map(([label, href]) => (
                   <li key={label}>
                     <Link href={href} className="text-xs text-[#6B7280] dark:text-[#A1A1AA] hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{label}</Link>
                   </li>
@@ -778,7 +786,7 @@ export default async function HomePage() {
             <div>
               <p className="text-[#111827] dark:text-[#F8FAFC] text-xs font-bold uppercase tracking-widest mb-4">Дэмжлэг</p>
               <ul className="space-y-2.5">
-                {[["Байгууллага бүртгүүлэх", "/register"], ["Багшаар бүртгүүлэх", "/register"], ["Дэмжлэг авах", "/login"], ["Нөхцөл & Нууцлал", "/"]].map(([label, href]) => (
+                {[["Байгууллага бүртгүүлэх", "/register"], ["Багшаар бүртгүүлэх", "/register"], ["Бүртгүүлэх", "/register"], ["Нэвтрэх", "/login"]].map(([label, href]) => (
                   <li key={label}>
                     <Link href={href} className="text-xs text-[#6B7280] dark:text-[#A1A1AA] hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{label}</Link>
                   </li>

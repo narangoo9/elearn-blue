@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { MessagesClient } from "@/components/student/MessagesClient";
 
-export const metadata: Metadata = { title: "Messages — EduNity" };
+export const metadata: Metadata = { title: "Мессеж" };
 
 export default async function MessagesPage() {
   const session = await auth();

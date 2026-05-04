@@ -124,7 +124,7 @@ export default function SchedulePage() {
           className="mb-4 rounded-2xl border border-violet-100 bg-violet-50/80 px-4 py-2.5 text-center dark:border-violet-800/30 dark:bg-violet-900/10"
         >
           <p className="text-[12px] font-semibold text-violet-700 dark:text-violet-300">
-            7 хоногт {days * minutes} минут — Гайхалтай зорилго! 🔥
+            7 хоногт {days * minutes} минут — Гайхалтай зорилго!
           </p>
         </motion.div>
       )}

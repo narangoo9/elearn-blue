@@ -57,14 +57,14 @@ export function CourseReviews({ courseId, reviews, currentUserId, myReview, canR
       <div className="flex items-center justify-between">
         <h3 className="text-[15px] font-bold text-foreground flex items-center gap-2">
           <MessageSquare size={16} className="text-violet-500" />
-          Reviews ({reviews.length})
+          Сэтгэгдлүүд ({reviews.length})
         </h3>
         {canReview && !showForm && (
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300 text-[12px] font-semibold rounded-xl hover:bg-violet-200 dark:hover:bg-violet-500/25 transition-colors"
           >
-            {myReview ? <><Edit2 size={11} /> Edit Review</> : <><Star size={11} /> Write Review</>}
+            {myReview ? <><Edit2 size={11} /> Засах</> : <><Star size={11} /> Сэтгэгдэл бичих</>}
           </button>
         )}
       </div>
@@ -81,7 +81,7 @@ export function CourseReviews({ courseId, reviews, currentUserId, myReview, canR
                 />
               ))}
             </div>
-            <p className="text-[10px] text-muted-foreground">{reviews.length} reviews</p>
+            <p className="text-[10px] text-muted-foreground">{reviews.length} сэтгэгдэл</p>
           </div>
           <div className="flex-1 space-y-1">
             {distrib.map(d => (
@@ -106,7 +106,7 @@ export function CourseReviews({ courseId, reviews, currentUserId, myReview, canR
       {myReview && !showForm && (
         <div className="bg-violet-50 dark:bg-violet-900/15 rounded-2xl border border-violet-200 dark:border-violet-800/40 p-4">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[11px] font-bold text-violet-700 dark:text-violet-300">Your Review</span>
+            <span className="text-[11px] font-bold text-violet-700 dark:text-violet-300">Миний сэтгэгдэл</span>
             <div className="flex items-center gap-0.5">
               {[1,2,3,4,5].map(n => (
                 <Star key={n} size={11} className={cn(myReview.rating >= n ? "text-amber-400 fill-amber-400" : "text-slate-200 fill-slate-200")} />

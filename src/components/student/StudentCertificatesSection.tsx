@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { Award, BadgeCheck, Building2, Download, Eye, ShieldCheck } from "lucide-react";
+import { Award, BadgeCheck, Building2, Download, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
-import { CertificateEmailButton } from "./CertificateEmailButton";
 
 interface StudentCertificateItem {
   id: string;
@@ -45,7 +44,7 @@ export function StudentCertificatesSection({
           <div>
             <h2 className="font-bold text-foreground">Сертификатууд</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Профайл хэсгээс сертификатаа харах, татах, баталгаажуулах, Gmail руу авах.
+              Сертификатаа харах, татаж авах, баталгаажуулах боломжтой.
             </p>
           </div>
         </div>
@@ -123,21 +122,10 @@ export function StudentCertificatesSection({
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <Button asChild variant="outline" size="sm" className="w-full">
-                    <Link
-                      href={`/student/certificates/${certificate.id}/share`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Eye />
-                      Харах
-                    </Link>
-                  </Button>
-
                   <Button asChild size="sm" className="w-full bg-violet-600 text-white hover:bg-violet-500">
                     <a href={`/api/v1/certificates/${certificate.id}/download`}>
                       <Download />
-                      Татаж авах
+                      Татах
                     </a>
                   </Button>
 
@@ -151,8 +139,6 @@ export function StudentCertificatesSection({
                       Баталгаажуулах
                     </Link>
                   </Button>
-
-                  <CertificateEmailButton certificateId={certificate.id} />
                 </div>
               </article>
             );

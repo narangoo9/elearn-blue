@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { updateProfileSchema, type UpdateProfileInput } from "@/modules/auth/domain/schemas";
@@ -23,6 +24,7 @@ interface Props {
 export function ProfileForm({ user }: Props) {
   const [isPending, startTransition] = useTransition();
   const [avatarPreview, setAvatarPreview] = useState(user.avatarUrl);
+  const router = useRouter();
 
   const {
     register,
@@ -60,6 +62,7 @@ export function ProfileForm({ user }: Props) {
         }
 
         toast({ type: "success", title: "Профайл хадгалагдлаа" });
+        router.refresh();
       } catch {
         toast({ type: "error", title: "Сүлжээний алдаа" });
       }

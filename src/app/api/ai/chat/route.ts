@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { rateLimit } from "@/lib/cache";
 import { unauthorized } from "@/shared/utils/api-response";
+import { getFallbackResponse } from "@/lib/ai/fallbackMentor";
 
 const SYSTEM_PROMPT = `You are an AI Learning Agent named Robo inside a multi-company e-learning SaaS platform called EduNity.
 
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     if (!session?.user) return unauthorized();
 
-    const { success } = await rateLimit(`ai:${session.user.id}`, 30, 3600, "fail-closed");
+    const { success } = await rateLimit(`ai:${session.user.id}`, 30, 3600, "fail-open");
     if (!success) {
       return NextResponse.json(
         { content: "AI хүсэлтийн лимит хэтэрлээ. 1 цагийн дараа дахин оролдоно уу." },
@@ -73,8 +74,13 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
+      const latestUserMessage = [...messages]
+        .reverse()
+        .find((m: { role?: string; content?: string }) => m.role === "user" && typeof m.content === "string")
+        ?.content;
+
       return NextResponse.json({
-        content: "Robo is not configured yet. Please add ANTHROPIC_API_KEY to your environment variables to enable AI assistance.",
+        content: getFallbackResponse(latestUserMessage ?? "help"),
       });
     }
 

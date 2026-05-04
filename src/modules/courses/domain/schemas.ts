@@ -36,9 +36,30 @@ export const createLessonSchema = z.object({
   contentUrl: z.string().url().optional().or(z.literal("")),
   contentBody: z.string().optional(),
   duration: z.number().int().min(0).optional(),
+  videoType: z.enum(["NONE", "YOUTUBE", "UPLOAD"]).default("NONE"),
+  videoUrl: z.string().url().optional().or(z.literal("")),
+  videoProvider: z.enum(["YOUTUBE", "CUSTOM"]).nullable().optional(),
+  sectionId: z.string().optional().or(z.literal("")),
+  startTimeSeconds: z.number().int().min(1).optional(),
+  endTimeSeconds: z.number().int().min(1).optional(),
+  videoSegments: z.array(
+    z.object({
+      title: z.string().min(2).max(100),
+      topic: z.string().max(150).optional().or(z.literal("")),
+      startTimeSeconds: z.number().int().min(0).optional(),
+      summary: z.string().max(240).optional().or(z.literal("")),
+    })
+  ).optional(),
+  videoTasks: z.array(z.string().max(180)).optional(),
+  sourceCreditName: z.string().max(120).optional().or(z.literal("")),
+  sourceCreditUrl: z.string().url().optional().or(z.literal("")),
   isFree: z.boolean().default(false),
   dripDays: z.number().int().min(0).optional(),
 });
+
+export const updateLessonSchema = createLessonSchema
+  .omit({ moduleId: true })
+  .partial();
 
 export const reorderLessonsSchema = z.object({
   lessons: z.array(
@@ -58,4 +79,5 @@ export type CreateCourseInput = z.infer<typeof createCourseSchema>;
 export type UpdateCourseInput = z.infer<typeof updateCourseSchema>;
 export type CreateModuleInput = z.infer<typeof createModuleSchema>;
 export type CreateLessonInput = z.infer<typeof createLessonSchema>;
+export type UpdateLessonInput = z.infer<typeof updateLessonSchema>;
 export type EnrollCourseInput = z.infer<typeof enrollCourseSchema>;

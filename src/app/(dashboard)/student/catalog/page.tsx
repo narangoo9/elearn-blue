@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  Search, Star, Users, Clock, Bookmark, ArrowRight,
+  Search, Star, Users, Clock, ArrowRight, BookOpen, Target,
 } from "lucide-react";
 import { getCourses } from "@/modules/courses/infrastructure/queries";
 import { Badge } from "@/components/ui/index";
@@ -9,8 +9,10 @@ import { formatDuration, cn } from "@/lib/utils";
 import { LearningArtwork } from "@/components/course/LearningArtwork";
 import { MascotImage } from "@/components/brand/MascotImage";
 import type { MascotVariant } from "@/components/brand/MascotImage";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { SaveCourseButton } from "@/components/course/SaveCourseButton";
 
-export const revalidate = 60;
 export const metadata: Metadata = { title: "Курс каталог" };
 
 const levelLabels: Record<string, string> = {
@@ -39,17 +41,24 @@ interface PageProps {
 }
 
 export default async function StudentCatalogPage({ searchParams }: PageProps) {
+  const session = await auth();
   const sp = await searchParams;
   const page = Number(sp.page ?? 1);
 
-  const listing = await getCourses({
+  const [listing, savedCourseRows] = await Promise.all([
+    getCourses({
     search: sp.search,
     level: sp.level as "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ALL_LEVELS" | undefined,
     page,
     limit: 12,
-    sortBy: (sp.sortBy as "newest" | "popular" | "rating") ?? "popular",
-  }).catch(() => null);
+      sortBy: (sp.sortBy as "newest" | "popular" | "rating") ?? "popular",
+    }).catch(() => null),
+    session?.user
+      ? db.savedCourse.findMany({ where: { userId: session.user.id }, select: { courseId: true } }).catch(() => [])
+      : Promise.resolve([] as { courseId: string }[]),
+  ]);
 
+  const savedCourseIds = new Set(savedCourseRows.map((s) => s.courseId));
   const courses    = listing?.courses ?? [];
   const pagination = listing?.pagination ?? {
     page, limit: 12, total: 0, totalPages: 0, hasNext: false, hasPrev: false,
@@ -99,6 +108,14 @@ export default async function StudentCatalogPage({ searchParams }: PageProps) {
         className="relative overflow-hidden rounded-3xl p-6 shadow-xl"
         style={{ background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 45%, #6d28d9 80%, #5b21b6 100%)" }}
       >
+        {/* Dot grid */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage: "radial-gradient(circle, rgba(255,255,255,.6) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+          }}
+        />
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -top-10 -right-10 w-60 h-60 rounded-full bg-white/5" />
           <div className="absolute -bottom-12 -left-8 w-44 h-44 rounded-full bg-white/5" />
@@ -109,28 +126,28 @@ export default async function StudentCatalogPage({ searchParams }: PageProps) {
           {/* Left */}
           <div className="flex-1 min-w-0">
             <p className="text-violet-200 text-[11px] font-bold uppercase tracking-[0.18em] mb-1">
-              🎓 Суралцах боломж
+              Суралцах боломж
             </p>
-            <h1 className="text-[2rem] font-black text-white leading-tight mb-1.5">
+            <h1 className="text-[1.5rem] sm:text-[2rem] font-black text-white leading-tight mb-1.5">
               Курс Каталог
             </h1>
             <p className="text-violet-200/90 text-[13px] mb-5">
-              Өөрт тохирох курсээ олж, шинэ ур чадвар эзэмшээрэй 🚀
+              Өөрт тохирох курсээ олж, шинэ ур чадвар эзэмшээрэй
             </p>
 
             {/* Stat pills */}
             <div className="flex gap-2 flex-wrap">
               {[
-                { value: `${pagination.total > 0 ? pagination.total : "8"}+`, label: "курс байна",  icon: "📚", bg: "bg-violet-500/40" },
-                { value: "6",    label: "сэдэв",      icon: "🎯", bg: "bg-white/10" },
-                { value: "200+", label: "суралцагч",  icon: "👥", bg: "bg-indigo-500/30" },
-                { value: "4.8",  label: "үнэлгээ",    icon: "⭐", bg: "bg-amber-400/25" },
+                { value: `${pagination.total > 0 ? pagination.total : "8"}+`, label: "курс байна",  Icon: BookOpen, bg: "bg-violet-500/40" },
+                { value: "6",    label: "сэдэв",      Icon: Target, bg: "bg-white/10" },
+                { value: "200+", label: "суралцагч",  Icon: Users,  bg: "bg-indigo-500/30" },
+                { value: "4.8",  label: "үнэлгээ",    Icon: Star,   bg: "bg-amber-400/25" },
               ].map((s) => (
                 <div
                   key={s.label}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl backdrop-blur-sm ${s.bg}`}
                 >
-                  <span className="text-sm">{s.icon}</span>
+                  <s.Icon size={13} className="text-white/90 shrink-0" />
                   <span className="text-white font-black text-[15px]">{s.value}</span>
                   <span className="text-violet-200 text-[11px] font-medium">{s.label}</span>
                 </div>
@@ -218,12 +235,12 @@ export default async function StudentCatalogPage({ searchParams }: PageProps) {
           {/* ── COURSE GRID ─────────────────────────────────────────── */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {courses.map((course) => (
-              <Link
+              <div
                 key={course.id}
-                href={`/courses/${course.slug}`}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-card hover:border-violet-300/60 dark:hover:border-violet-700/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 glow-card"
+                className="group relative overflow-hidden rounded-2xl border border-[#E9DFFF] dark:border-[#2E2146] bg-white dark:bg-[#1C142B] hover:border-violet-400/60 dark:hover:border-violet-600/50 hover:shadow-[0_8px_32px_rgba(124,58,237,0.12)] hover:-translate-y-1 transition-all duration-200"
               >
                 {/* Thumbnail area */}
+                <Link href={`/courses/${course.slug}`} className="block">
                 <div className="relative h-40 overflow-hidden bg-muted">
                   {course.thumbnailUrl ? (
                     <img
@@ -241,8 +258,8 @@ export default async function StudentCatalogPage({ searchParams }: PageProps) {
                     />
                   )}
 
-                  {/* Top-left: level + category */}
-                  <div className="absolute left-2 top-2 flex items-center gap-1 flex-wrap">
+                  {/* Top-left: level badge */}
+                  <div className="absolute left-2 top-2 flex items-center gap-1">
                     <Badge
                       variant={levelColors[course.level] ?? "info"}
                       className="shadow-sm text-[9px] py-0 leading-tight"
@@ -256,54 +273,65 @@ export default async function StudentCatalogPage({ searchParams }: PageProps) {
                     )}
                   </div>
 
-                  {/* Top-right: bookmark (reveals on hover) */}
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <div className="w-7 h-7 bg-white/85 dark:bg-black/55 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-sm">
-                      <Bookmark size={13} className="text-violet-600 dark:text-violet-400" />
-                    </div>
-                  </div>
-
-                  {/* Bottom-right: mascot (fades when CTA overlay appears) */}
-                  <div className="absolute -bottom-2 -right-1 transition-all duration-200 group-hover:opacity-0 group-hover:scale-90">
+                  {/* Bottom-right: mascot watermark */}
+                  <div className="absolute -bottom-1 -right-1 transition-opacity duration-200 group-hover:opacity-0">
                     <MascotImage
                       variant={mascotForCourse(course.level, course.category?.name)}
-                      size={44}
-                      className="opacity-75"
+                      size={48}
+                      className="opacity-80 drop-shadow-md"
                     />
                   </div>
 
-                  {/* Hover: gradient overlay + CTA pill */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-end justify-center pb-3.5">
-                    <span className="translate-y-2 group-hover:translate-y-0 transition-transform duration-200 bg-white text-violet-700 font-black text-[11px] px-4 py-1.5 rounded-xl shadow-lg">
+                  {/* Hover CTA overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-violet-900/70 via-violet-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end justify-center pb-4">
+                    <span className="bg-white text-violet-700 font-black text-[11px] px-4 py-1.5 rounded-xl shadow-lg">
                       Курс үзэх →
                     </span>
                   </div>
                 </div>
+                </Link>
+
+                {/* Top-right: save button */}
+                <div className="pointer-events-auto absolute right-2 top-2 z-10">
+                  <SaveCourseButton
+                    courseId={course.id}
+                    initialSaved={savedCourseIds.has(course.id)}
+                    size={14}
+                    className="h-7 w-7 bg-white/90 backdrop-blur-sm shadow-sm rounded-lg border-0 hover:bg-white"
+                  />
+                </div>
 
                 {/* Card body */}
-                <div className="p-3.5">
-                  <p className="mb-0.5 line-clamp-2 text-[13px] font-bold leading-snug text-foreground">
+                <Link href={`/courses/${course.slug}`} className="block p-4">
+                  <p className="mb-1 line-clamp-2 text-[13px] font-bold leading-snug text-[#111827] dark:text-[#F8FAFC]">
                     {course.title}
                   </p>
-                  <p className="mb-2.5 text-[11px] text-muted-foreground">{course.instructor.name}</p>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <p className="mb-3 text-[11px] text-[#6B7280] dark:text-[#A1A1AA]">{course.instructor.name}</p>
+                  {/* Dot separator row */}
+                  <div className="flex items-center gap-1.5 text-[10px] text-[#9CA3AF] dark:text-[#71717A]">
                     <span className="flex items-center gap-1 font-medium">
-                      <Users size={11} /> {course.enrollmentCount}
+                      <Users size={10} /> {course.enrollmentCount}
                     </span>
                     {course.averageRating > 0 && (
-                      <span className="flex items-center gap-1 font-medium">
-                        <Star size={11} className="fill-amber-400 text-amber-400" />
-                        {course.averageRating.toFixed(1)}
-                      </span>
+                      <>
+                        <span>·</span>
+                        <span className="flex items-center gap-1 font-medium">
+                          <Star size={10} className="fill-amber-400 text-amber-400" />
+                          {course.averageRating.toFixed(1)}
+                        </span>
+                      </>
                     )}
                     {course.duration && (
-                      <span className="flex items-center gap-1">
-                        <Clock size={11} /> {formatDuration(course.duration * 60)}
-                      </span>
+                      <>
+                        <span>·</span>
+                        <span className="flex items-center gap-1">
+                          <Clock size={10} /> {formatDuration(course.duration * 60)}
+                        </span>
+                      </>
                     )}
                   </div>
-                </div>
-              </Link>
+                </Link>
+              </div>
             ))}
           </div>
 

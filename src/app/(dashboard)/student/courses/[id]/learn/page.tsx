@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { LearningPlayer } from "@/components/course/LearningPlayer";
 import { CourseReviews } from "@/components/course/CourseReviews";
 import { hasActiveCourseAccess } from "@/lib/subscription-access";
+import { trackLessonView } from "@/modules/courses/application/actions";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -68,6 +69,8 @@ export default async function LearnPage({ params, searchParams }: Props) {
   const completedIds = new Set(progress.filter((p) => p.isCompleted).map((p) => p.lessonId));
   const totalLessons = allLessons.length;
   const completedCount = completedIds.size;
+
+  void trackLessonView(activeLesson.id, courseId, enrollment.id);
 
   const myReview = reviews.find((r) => r.student.id === session.user.id) ?? null;
 

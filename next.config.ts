@@ -15,7 +15,6 @@ const createNextConfig = (phase: string): NextConfig => {
   ].filter((origin): origin is string => Boolean(origin));
 
   return {
-    distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
     output: "standalone",
 
     images: {
@@ -24,6 +23,7 @@ const createNextConfig = (phase: string): NextConfig => {
         { protocol: "https", hostname: "**.amazonaws.com" },
         { protocol: "https", hostname: "lh3.googleusercontent.com" },
         { protocol: "https", hostname: "avatars.githubusercontent.com" },
+        { protocol: "https", hostname: "randomuser.me" },
       ],
       formats: ["image/avif", "image/webp"],
     },
@@ -63,7 +63,7 @@ const createNextConfig = (phase: string): NextConfig => {
                 "style-src 'self' 'unsafe-inline'",
                 "img-src 'self' blob: data: https:",
                 "font-src 'self'",
-                "frame-src https://js.stripe.com",
+                "frame-src https://js.stripe.com https://www.youtube.com https://www.youtube-nocookie.com",
                 "connect-src 'self' https:",
               ].join("; "),
             },

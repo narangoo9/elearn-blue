@@ -72,16 +72,16 @@ export default async function CourseDetailPage({ params }: Props) {
           <Navbar />
           <div className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-4">
             <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center">
-              <h1 className="text-2xl font-bold text-foreground">Course data is unavailable</h1>
+              <h1 className="text-2xl font-bold text-foreground">Курсийн мэдээлэл ачааллагдсангүй</h1>
               <p className="mt-3 text-sm text-muted-foreground">
-                Check `DATABASE_URL` in `.env` and make sure PostgreSQL is running.
+                Мэдээллийн сан холбогдоогүй байна. Дахин оролдоно уу.
               </p>
               <div className="mt-6">
                 <Link
                   href="/courses"
                   className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-violet-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
                 >
-                  Browse courses <ArrowRight size={14} />
+                  Курсууд руу буцах <ArrowRight size={14} />
                 </Link>
               </div>
             </div>

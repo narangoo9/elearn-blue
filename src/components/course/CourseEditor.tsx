@@ -7,21 +7,35 @@ import {
   BookOpen, Globe, Archive, Loader2, X,
 } from "lucide-react";
 import {
-  createModule, deleteModule, createLesson, publishCourse, unpublishCourse, updateCourse,
+  createModule, deleteModule, createLesson, updateLesson, deleteLesson,
+  fixZeroTimeSegments, publishCourse, unpublishCourse, updateCourse,
 } from "@/modules/courses/application/actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/index";
 import { toast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { ImageUploadField } from "@/components/forms/ImageUploadField";
+import { isValidYouTubeUrl } from "@/lib/youtube";
 
 type LessonType = "VIDEO" | "TEXT" | "PDF" | "ASSIGNMENT" | "QUIZ" | "LIVE_SESSION";
+type LessonVideoType = "NONE" | "YOUTUBE" | "UPLOAD";
+type LessonVideoProvider = "YOUTUBE" | "CUSTOM" | null;
 
 interface Lesson {
   id: string;
   title: string;
+  description?: string | null;
   type: LessonType;
   duration: number | null;
+  contentUrl?: string | null;
+  videoType?: LessonVideoType | null;
+  videoUrl?: string | null;
+  videoProvider?: LessonVideoProvider;
+  sectionId?: string | null;
+  startTimeSeconds?: number | null;
+  endTimeSeconds?: number | null;
+  sourceCreditName?: string | null;
+  sourceCreditUrl?: string | null;
   isFree: boolean;
   orderIndex: number;
 }
@@ -50,8 +64,25 @@ export function CourseEditor({ courseId, status, thumbnailUrl, modules }: Props)
   const [openModule, setOpenModule] = useState<string | null>(modules[0]?.id ?? null);
   const [showNewModule, setShowNewModule] = useState(false);
   const [showNewLesson, setShowNewLesson] = useState<string | null>(null);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [coverUrl, setCoverUrl] = useState(thumbnailUrl);
   const [isPending, startTransition] = useTransition();
+
+  const handleFixZeroTimes = () => {
+    startTransition(async () => {
+      const result = await fixZeroTimeSegments(courseId);
+      if ("error" in result) {
+        toast({ type: "error", title: result.error as string });
+        return;
+      }
+      const { fixed } = result as { fixed: number };
+      toast({
+        type: "success",
+        title: fixed > 0 ? `${fixed} хичээлийн буруу цагийг заслаа ✅` : "Засах шаардлагатай хичээл олдсонгүй",
+      });
+      if (fixed > 0) router.refresh();
+    });
+  };
 
   const totalLessons = modules.reduce((s, m) => s + m.lessons.length, 0);
 
@@ -165,23 +196,46 @@ export function CourseEditor({ courseId, status, thumbnailUrl, modules }: Props)
 
                   {mod.lessons.map((lesson) => {
                     const Icon = lessonTypeIcons[lesson.type] ?? FileText;
+                    const isEditing = editingLesson?.id === lesson.id;
+                    const hasTimeIssue =
+                      lesson.startTimeSeconds === 0 || lesson.endTimeSeconds === 0;
                     return (
-                      <div key={lesson.id} className="flex items-center gap-3 px-4 py-2.5 border-t border-border hover:bg-muted/50 group">
-                        <GripVertical size={13} className="text-muted-foreground/60 cursor-grab" />
-                        <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
-                          <Icon size={13} className="text-muted-foreground" />
+                      <div key={lesson.id} className="border-t border-border">
+                        <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 group">
+                          <GripVertical size={13} className="text-muted-foreground/60 cursor-grab" />
+                          <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
+                            <Icon size={13} className="text-muted-foreground" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-foreground truncate">{lesson.title}</p>
+                            <p className="text-xs text-muted-foreground/80">
+                              {lesson.type}
+                              {lesson.duration ? ` · ${Math.ceil(lesson.duration / 60)}м` : ""}
+                              {lesson.isFree ? " · Үнэгүй" : ""}
+                              {hasTimeIssue && (
+                                <span className="ml-1 text-red-500 font-medium">⚠ цаг=0</span>
+                              )}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setEditingLesson(isEditing ? null : lesson)}
+                            className={cn(
+                              "text-xs font-medium px-2 py-1 rounded-lg transition-colors",
+                              isEditing
+                                ? "bg-violet-100 text-violet-700"
+                                : "text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100",
+                            )}
+                          >
+                            {isEditing ? "Хаах" : "Засах"}
+                          </button>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground truncate">{lesson.title}</p>
-                          <p className="text-xs text-muted-foreground/80">
-                            {lesson.type}
-                            {lesson.duration && ` · ${Math.ceil(lesson.duration / 60)}м`}
-                            {lesson.isFree && " · Үнэгүй"}
-                          </p>
-                        </div>
-                        <button className="text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                          Засах
-                        </button>
+                        {isEditing && (
+                          <EditLessonForm
+                            lesson={lesson}
+                            onClose={() => setEditingLesson(null)}
+                            onSaved={() => { setEditingLesson(null); router.refresh(); }}
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -248,6 +302,29 @@ export function CourseEditor({ courseId, status, thumbnailUrl, modules }: Props)
           {totalLessons === 0 && (
             <p className="text-xs text-amber-600 mt-2">Нийтлэхийн өмнө ядаж 1 хичээл нэмнэ үү</p>
           )}
+        </div>
+
+        {/* DB Fix card */}
+        <div className="bg-white rounded-xl border border-amber-200 p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-1">Видео цагийн засвар</h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            YouTube хичээлийн <code className="bg-muted px-1 rounded">endTimeSeconds=0</code> болон{" "}
+            <code className="bg-muted px-1 rounded">startTimeSeconds=0</code> утгуудыг{" "}
+            <code className="bg-muted px-1 rounded">null</code> болгон засна.
+            Ингэснээр "Video unavailable" алдаа арилна.
+          </p>
+          <Button
+            onClick={handleFixZeroTimes}
+            disabled={isPending}
+            variant="outline"
+            className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+          >
+            {isPending ? (
+              <><Loader2 size={14} className="animate-spin mr-2" /> Засаж байна...</>
+            ) : (
+              "⚠ Буруу цагуудыг засах"
+            )}
+          </Button>
         </div>
 
         {/* Checklist */}
@@ -321,14 +398,49 @@ function NewModuleForm({ courseId, onClose, onCreated }: { courseId: string; onC
 function NewLessonForm({ moduleId, onClose, onCreated }: { moduleId: string; onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({
     title: "", type: "VIDEO" as LessonType, contentUrl: "", contentBody: "",
-    duration: 0, isFree: false,
+    duration: 0,
+    videoType: "NONE" as LessonVideoType,
+    videoUrl: "",
+    videoProvider: null as LessonVideoProvider,
+    sectionId: "",
+    startTimeSeconds: undefined as number | undefined,
+    endTimeSeconds: undefined as number | undefined,
+    videoSegments: [] as Array<{ title: string; topic: string; startTimeSeconds?: number; summary: string }> ,
+    videoTasks: [] as string[],
+    sourceCreditName: "",
+    sourceCreditUrl: "",
+    isFree: false,
   });
+  const [videoError, setVideoError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const submit = () => {
     if (!form.title.trim()) return;
+    if (form.videoType === "YOUTUBE" && !isValidYouTubeUrl(form.videoUrl)) {
+      setVideoError("YouTube холбоос буруу байна.");
+      return;
+    }
+    if (
+      form.videoType === "YOUTUBE" &&
+      form.startTimeSeconds !== undefined &&
+      form.endTimeSeconds !== undefined &&
+      form.startTimeSeconds > form.endTimeSeconds
+    ) {
+      setVideoError("Сегментийн эхлэх хугацаа дуусах хугацаанаас бага байх ёстой.");
+      return;
+    }
+    setVideoError(null);
     startTransition(async () => {
-      const result = await createLesson({ moduleId, ...form });
+      const result = await createLesson({
+        moduleId,
+        ...form,
+        videoProvider:
+          form.videoType === "YOUTUBE"
+            ? "YOUTUBE"
+            : form.videoType === "UPLOAD"
+              ? "CUSTOM"
+              : null,
+      });
       if ("error" in result) {
         toast({ type: "error", title: "Алдаа" });
         return;
@@ -378,6 +490,234 @@ function NewLessonForm({ moduleId, onClose, onCreated }: { moduleId: string; onC
         </div>
       )}
 
+      <div className="space-y-3 rounded-xl border border-violet-100 bg-white p-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>Video source</Label>
+            <select
+              value={form.videoType}
+              onChange={(e) => {
+                const videoType = e.target.value as LessonVideoType;
+                setVideoError(null);
+                setForm({
+                  ...form,
+                  videoType,
+                  videoProvider:
+                    videoType === "YOUTUBE" ? "YOUTUBE" : videoType === "UPLOAD" ? "CUSTOM" : null,
+                });
+              }}
+              className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm"
+            >
+              <option value="NONE">None</option>
+              <option value="YOUTUBE">YouTube</option>
+              <option value="UPLOAD">Upload / Custom URL</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Duration (сек)</Label>
+            <Input
+              type="number"
+              min={0}
+              value={form.duration}
+              onChange={(e) => setForm({ ...form, duration: Number(e.target.value) })}
+            />
+          </div>
+        </div>
+
+        {form.videoType !== "NONE" ? (
+          <div className="space-y-1.5">
+            <Label>{form.videoType === "YOUTUBE" ? "YouTube URL" : "Video URL"}</Label>
+            <Input
+              value={form.videoUrl}
+              onChange={(e) => {
+                setVideoError(null);
+                setForm({ ...form, videoUrl: e.target.value });
+              }}
+              placeholder="https://www.youtube.com/watch?v=..."
+            />
+            {videoError ? <p className="text-xs font-medium text-red-500">{videoError}</p> : null}
+          </div>
+        ) : null}
+
+        {form.videoType === "YOUTUBE" ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label>Section ID</Label>
+                <Input
+                  value={form.sectionId}
+                  onChange={(e) => setForm({ ...form, sectionId: e.target.value })}
+                  placeholder="Хиеэлийн хэсгийн нэр"
+                />
+                <p className="text-xs text-slate-500">Олон хичээл нэг видеоноос хуваахдаа энэ хэсгийг ашиглана.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Эхлэх секунд</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.startTimeSeconds ?? ""}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setForm({ ...form, startTimeSeconds: e.target.value && v > 0 ? v : undefined });
+                  }}
+                  placeholder="жишээ: 30"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Дуусах секунд</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.endTimeSeconds ?? ""}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setForm({ ...form, endTimeSeconds: e.target.value && v > 0 ? v : undefined });
+                  }}
+                  placeholder="жишээ: 120"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <p className="text-sm font-semibold">Видео секцүүд</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      videoSegments: [
+                        ...form.videoSegments,
+                        { title: "", topic: "", summary: "", startTimeSeconds: undefined },
+                      ],
+                    })
+                  }
+                  className="text-xs font-semibold text-violet-600 hover:text-violet-700"
+                >
+                  + Секц нэмэх
+                </button>
+              </div>
+              {form.videoSegments.map((segment, index) => (
+                <div key={index} className="space-y-2 rounded-2xl border border-slate-200 bg-white p-3">
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <Input
+                      value={segment.title}
+                      onChange={(e) => {
+                        const next = [...form.videoSegments];
+                        next[index].title = e.target.value;
+                        setForm({ ...form, videoSegments: next });
+                      }}
+                      placeholder="Секцийн нэр"
+                    />
+                    <Input
+                      value={segment.topic}
+                      onChange={(e) => {
+                        const next = [...form.videoSegments];
+                        next[index].topic = e.target.value;
+                        setForm({ ...form, videoSegments: next });
+                      }}
+                      placeholder="Товч агуулга"
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      value={segment.startTimeSeconds ?? ""}
+                      onChange={(e) => {
+                        const next = [...form.videoSegments];
+                        next[index].startTimeSeconds = e.target.value ? Number(e.target.value) : undefined;
+                        setForm({ ...form, videoSegments: next });
+                      }}
+                      placeholder="Эхлэх секунд"
+                    />
+                  </div>
+                  <Textarea
+                    rows={2}
+                    value={segment.summary}
+                    onChange={(e) => {
+                      const next = [...form.videoSegments];
+                      next[index].summary = e.target.value;
+                      setForm({ ...form, videoSegments: next });
+                    }}
+                    placeholder="Секцийн тайлбар"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = [...form.videoSegments];
+                      next.splice(index, 1);
+                      setForm({ ...form, videoSegments: next });
+                    }}
+                    className="text-xs font-semibold text-red-500 hover:text-red-600"
+                  >
+                    Секц устгах
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <p className="text-sm font-semibold">Үйлдлийн даалгавар</p>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, videoTasks: [...form.videoTasks, ""] })}
+                  className="text-xs font-semibold text-violet-600 hover:text-violet-700"
+                >
+                  + Даалгавар нэмэх
+                </button>
+              </div>
+              <div className="space-y-2">
+                {form.videoTasks.map((task, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={task}
+                      onChange={(e) => {
+                        const next = [...form.videoTasks];
+                        next[index] = e.target.value;
+                        setForm({ ...form, videoTasks: next });
+                      }}
+                      placeholder="Даалгаврын текст"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = [...form.videoTasks];
+                        next.splice(index, 1);
+                        setForm({ ...form, videoTasks: next });
+                      }}
+                      className="text-sm font-semibold text-red-500 hover:text-red-600"
+                    >
+                      X
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>Source credit name</Label>
+            <Input
+              value={form.sourceCreditName}
+              onChange={(e) => setForm({ ...form, sourceCreditName: e.target.value })}
+              placeholder="YouTube channel / creator"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Source credit URL</Label>
+            <Input
+              value={form.sourceCreditUrl}
+              onChange={(e) => setForm({ ...form, sourceCreditUrl: e.target.value })}
+              placeholder="https://..."
+            />
+          </div>
+        </div>
+      </div>
+
       {form.type === "TEXT" && (
         <div className="space-y-1.5">
           <Label>Контент</Label>
@@ -400,6 +740,272 @@ function NewLessonForm({ moduleId, onClose, onCreated }: { moduleId: string; onC
           {isPending ? <><Loader2 size={13} className="animate-spin mr-1" /> Үүсгэж байна...</> : "Үүсгэх"}
         </Button>
         <Button size="sm" variant="outline" onClick={onClose}>Болих</Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── EDIT LESSON FORM ────────────────────────────────────────────────────────
+
+function EditLessonForm({
+  lesson,
+  onClose,
+  onSaved,
+}: {
+  lesson: Lesson;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState({
+    title: lesson.title,
+    type: lesson.type,
+    contentUrl: lesson.contentUrl ?? "",
+    duration: lesson.duration ?? 0,
+    videoType: (lesson.videoType ?? "NONE") as LessonVideoType,
+    videoUrl: lesson.videoUrl ?? "",
+    videoProvider: (lesson.videoProvider ?? null) as LessonVideoProvider,
+    sectionId: lesson.sectionId ?? "",
+    // Treat 0 as undefined so inputs display empty
+    startTimeSeconds: (lesson.startTimeSeconds ?? 0) > 0 ? lesson.startTimeSeconds! : undefined as number | undefined,
+    endTimeSeconds: (lesson.endTimeSeconds ?? 0) > 0 ? lesson.endTimeSeconds! : undefined as number | undefined,
+    sourceCreditName: lesson.sourceCreditName ?? "",
+    sourceCreditUrl: lesson.sourceCreditUrl ?? "",
+    isFree: lesson.isFree,
+  });
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+
+  const submit = () => {
+    if (!form.title.trim()) return;
+    if (form.videoType === "YOUTUBE" && form.videoUrl && !isValidYouTubeUrl(form.videoUrl)) {
+      setVideoError("YouTube холбоос буруу байна.");
+      return;
+    }
+    if (
+      form.videoType === "YOUTUBE" &&
+      form.startTimeSeconds !== undefined &&
+      form.endTimeSeconds !== undefined &&
+      form.startTimeSeconds >= form.endTimeSeconds
+    ) {
+      setVideoError("Эхлэх хугацаа дуусах хугацаанаас бага байх ёстой.");
+      return;
+    }
+    setVideoError(null);
+    startTransition(async () => {
+      const result = await updateLesson(lesson.id, {
+        ...form,
+        videoProvider:
+          form.videoType === "YOUTUBE" ? "YOUTUBE" : form.videoType === "UPLOAD" ? "CUSTOM" : null,
+        duration: form.duration || undefined,
+        contentUrl: form.contentUrl || undefined,
+        videoUrl: form.videoUrl || undefined,
+        sectionId: form.sectionId || undefined,
+        sourceCreditName: form.sourceCreditName || undefined,
+        sourceCreditUrl: form.sourceCreditUrl || undefined,
+      });
+      if ("error" in result) {
+        toast({ type: "error", title: "Алдаа гарлаа" });
+        return;
+      }
+      toast({ type: "success", title: "Хичээл шинэчлэгдлээ ✅" });
+      onSaved();
+    });
+  };
+
+  const handleDelete = () => {
+    if (!confirm(`"${lesson.title}" хичээлийг устгах уу?`)) return;
+    startTransition(async () => {
+      const result = await deleteLesson(lesson.id);
+      if ("error" in result) {
+        toast({ type: "error", title: result.error as string });
+        return;
+      }
+      toast({ type: "success", title: "Хичээл устгагдлаа" });
+      onSaved();
+    });
+  };
+
+  return (
+    <div className="border-t-2 border-violet-400 bg-violet-50/50 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-violet-800">Хичээл засах</p>
+        <button onClick={onClose}><X size={14} className="text-muted-foreground/80" /></button>
+      </div>
+
+      {/* Title */}
+      <div className="space-y-1.5">
+        <Label>Гарчиг</Label>
+        <Input
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          placeholder="Хичээлийн гарчиг"
+          autoFocus
+        />
+      </div>
+
+      {/* Type + Duration */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1.5">
+          <Label>Төрөл</Label>
+          <select
+            value={form.type}
+            onChange={(e) => setForm({ ...form, type: e.target.value as LessonType })}
+            className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm"
+          >
+            <option value="VIDEO">Видео</option>
+            <option value="TEXT">Текст</option>
+            <option value="PDF">PDF</option>
+            <option value="QUIZ">Шалгалт</option>
+            <option value="ASSIGNMENT">Даалгавар</option>
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Хугацаа (сек)</Label>
+          <Input
+            type="number"
+            min={0}
+            value={form.duration}
+            onChange={(e) => setForm({ ...form, duration: Number(e.target.value) })}
+          />
+        </div>
+      </div>
+
+      {/* Legacy contentUrl for PDF */}
+      {(form.type === "PDF") && (
+        <div className="space-y-1.5">
+          <Label>PDF URL</Label>
+          <Input
+            value={form.contentUrl}
+            onChange={(e) => setForm({ ...form, contentUrl: e.target.value })}
+            placeholder="https://..."
+          />
+        </div>
+      )}
+
+      {/* Video section */}
+      <div className="space-y-3 rounded-xl border border-violet-200 bg-white p-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>Video source</Label>
+            <select
+              value={form.videoType}
+              onChange={(e) => {
+                const videoType = e.target.value as LessonVideoType;
+                setVideoError(null);
+                setForm({
+                  ...form,
+                  videoType,
+                  videoProvider:
+                    videoType === "YOUTUBE" ? "YOUTUBE" : videoType === "UPLOAD" ? "CUSTOM" : null,
+                });
+              }}
+              className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm"
+            >
+              <option value="NONE">None</option>
+              <option value="YOUTUBE">YouTube</option>
+              <option value="UPLOAD">Upload / Custom URL</option>
+            </select>
+          </div>
+        </div>
+
+        {form.videoType !== "NONE" && (
+          <div className="space-y-1.5">
+            <Label>{form.videoType === "YOUTUBE" ? "YouTube URL" : "Video URL"}</Label>
+            <Input
+              value={form.videoUrl}
+              onChange={(e) => { setVideoError(null); setForm({ ...form, videoUrl: e.target.value }); }}
+              placeholder="https://www.youtube.com/watch?v=..."
+            />
+            {videoError && <p className="text-xs font-medium text-red-500">{videoError}</p>}
+          </div>
+        )}
+
+        {form.videoType === "YOUTUBE" && (
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1.5">
+              <Label>Section ID</Label>
+              <Input
+                value={form.sectionId}
+                onChange={(e) => setForm({ ...form, sectionId: e.target.value })}
+                placeholder="Хэсгийн нэр"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Эхлэх секунд</Label>
+              <Input
+                type="number"
+                min={1}
+                value={form.startTimeSeconds ?? ""}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setForm({ ...form, startTimeSeconds: e.target.value && v > 0 ? v : undefined });
+                }}
+                placeholder="жишээ: 30"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Дуусах секунд</Label>
+              <Input
+                type="number"
+                min={1}
+                value={form.endTimeSeconds ?? ""}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setForm({ ...form, endTimeSeconds: e.target.value && v > 0 ? v : undefined });
+                }}
+                placeholder="жишээ: 120"
+              />
+            </div>
+          </div>
+        )}
+
+        {(form.videoType === "YOUTUBE") && (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label>Source credit</Label>
+              <Input
+                value={form.sourceCreditName}
+                onChange={(e) => setForm({ ...form, sourceCreditName: e.target.value })}
+                placeholder="Channel нэр"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Source URL</Label>
+              <Input
+                value={form.sourceCreditUrl}
+                onChange={(e) => setForm({ ...form, sourceCreditUrl: e.target.value })}
+                placeholder="https://..."
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Free toggle */}
+      <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+        <input
+          type="checkbox"
+          checked={form.isFree}
+          onChange={(e) => setForm({ ...form, isFree: e.target.checked })}
+          className="accent-violet-600"
+        />
+        Үнэгүй preview
+      </label>
+
+      {/* Buttons */}
+      <div className="flex gap-2">
+        <Button size="sm" onClick={submit} disabled={isPending || !form.title.trim()} className="flex-1">
+          {isPending ? <><Loader2 size={13} className="animate-spin mr-1" /> Хадгалж байна...</> : "Хадгалах"}
+        </Button>
+        <Button size="sm" variant="outline" onClick={onClose}>Болих</Button>
+        <button
+          onClick={handleDelete}
+          disabled={isPending}
+          className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-500 transition-colors hover:border-red-400 hover:bg-red-50 disabled:opacity-50"
+        >
+          <Trash2 size={12} /> Устгах
+        </button>
       </div>
     </div>
   );

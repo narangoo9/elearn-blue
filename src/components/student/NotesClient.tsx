@@ -63,28 +63,28 @@ const COL_CONFIG: Record<BoardCol, {
   badgeBg: string;
 }> = {
   todo: {
-    label: "To Do",
+    label: "Хийх",
     color: "text-amber-700 dark:text-amber-300",
     headerBg: "bg-amber-50 border border-amber-100 dark:bg-amber-900/20 dark:border-amber-800/30",
     dot: "bg-amber-400",
     badgeBg: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   },
   inprogress: {
-    label: "In Progress",
+    label: "Хийж байна",
     color: "text-blue-700 dark:text-blue-300",
     headerBg: "bg-blue-50 border border-blue-100 dark:bg-blue-900/20 dark:border-blue-800/30",
     dot: "bg-blue-400",
     badgeBg: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
   },
   review: {
-    label: "In Review",
+    label: "Шалгаж байна",
     color: "text-violet-700 dark:text-violet-300",
     headerBg: "bg-violet-50 border border-violet-100 dark:bg-violet-900/20 dark:border-violet-800/30",
     dot: "bg-violet-400",
     badgeBg: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
   },
   done: {
-    label: "Done",
+    label: "Дууссан",
     color: "text-emerald-700 dark:text-emerald-300",
     headerBg: "bg-emerald-50 border border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800/30",
     dot: "bg-emerald-400",
@@ -103,44 +103,44 @@ const COLS: BoardCol[] = ["todo", "inprogress", "review", "done"];
 
 const SAMPLE: NoteCard[] = [
   {
-    id: "1", col: "inprogress", title: "UI/UX Design Notes", color: "violet",
-    content: "Key principles from today's lesson",
+    id: "1", col: "inprogress", title: "UI/UX Дизайны тэмдэглэл", color: "violet",
+    content: "Өнөөдрийн хичээлийн гол зарчмууд",
     checklist: [
-      { id: "c1", text: "Study Gestalt principles", done: true },
-      { id: "c2", text: "Practice wireframing", done: false },
-      { id: "c3", text: "Read Don Norman's book", done: false },
+      { id: "c1", text: "Gestalt зарчмуудыг судлах", done: true },
+      { id: "c2", text: "Wireframe дадлага хийх", done: false },
+      { id: "c3", text: "Don Norman-ий ном уншах", done: false },
     ],
-    tags: ["design", "ux"], createdAt: new Date(),
+    tags: ["дизайн", "ux"], createdAt: new Date(),
   },
   {
-    id: "2", col: "todo", title: "Web Dev Setup", color: "amber",
-    content: "Project setup tasks for this week",
+    id: "2", col: "todo", title: "Web хөгжүүлэлт тохиргоо", color: "amber",
+    content: "Энэ долоо хоногийн төслийн тохиргоо",
     checklist: [
-      { id: "c4", text: "Next.js project", done: true },
+      { id: "c4", text: "Next.js төсөл", done: true },
       { id: "c5", text: "Tailwind CSS", done: true },
-      { id: "c6", text: "Auth flow", done: false },
+      { id: "c6", text: "Нэвтрэх систем", done: false },
     ],
-    tags: ["coding"], createdAt: new Date(),
+    tags: ["код"], createdAt: new Date(),
   },
   {
-    id: "3", col: "done", title: "Study Goals", color: "emerald",
-    content: "Complete 5 courses this month and maintain streak.",
+    id: "3", col: "done", title: "Суралцах зорилго", color: "emerald",
+    content: "Энэ сард 5 курс дүүргэж streak хадгалах.",
     checklist: [
-      { id: "c8", text: "Enroll in React course", done: true },
-      { id: "c9", text: "Finish lesson 1-5", done: true },
+      { id: "c8", text: "React курст бүртгүүлэх", done: true },
+      { id: "c9", text: "1-5 хичээл дүүргэх", done: true },
     ],
-    tags: ["goals"], createdAt: new Date(),
+    tags: ["зорилго"], createdAt: new Date(),
   },
   {
-    id: "4", col: "review", title: "Database Design", color: "sky",
-    content: "Review schema before submitting capstone",
+    id: "4", col: "review", title: "Мэдээллийн сан дизайн", color: "sky",
+    content: "Capstone илгээхийн өмнө схем шалгах",
     checklist: [
-      { id: "c10", text: "Normalize tables", done: true },
-      { id: "c11", text: "Add indexes", done: false },
-      { id: "c12", text: "Root indexes", done: false },
-      { id: "c13", text: "Review with mentor", done: false },
+      { id: "c10", text: "Хүснэгтийг нормалчлах", done: true },
+      { id: "c11", text: "Индекс нэмэх", done: false },
+      { id: "c12", text: "Индекс шалгах", done: false },
+      { id: "c13", text: "Менторт шалгуулах", done: false },
     ],
-    tags: ["db", "backend"], createdAt: new Date(),
+    tags: ["өгөгдөл", "backend"], createdAt: new Date(),
   },
   {
     id: "5", col: "todo", title: "Learn TypeScript", color: "sky",
@@ -430,9 +430,9 @@ function RewardProgress({ doneCount }: { doneCount: number }) {
 
         <div className="hidden lg:flex items-center gap-2 shrink-0">
           {[
-            { icon: Zap,    label: "+100 XP",      bg: "bg-violet-50 dark:bg-violet-900/30", border: "border-violet-200 dark:border-violet-800/40", ic: "text-primary",       tc: "text-violet-700 dark:text-violet-300" },
-            { icon: Trophy, label: "Streak +1 Day", bg: "bg-amber-50 dark:bg-amber-900/20",  border: "border-amber-200 dark:border-amber-800/40",   ic: "text-amber-500",     tc: "text-amber-700 dark:text-amber-300" },
-            { icon: Gift,   label: "Master Badge",  bg: "bg-emerald-50 dark:bg-emerald-900/20", border: "border-emerald-200 dark:border-emerald-800/40", ic: "text-emerald-600", tc: "text-emerald-700 dark:text-emerald-300" },
+            { icon: Zap,    label: "+100 XP",       bg: "bg-violet-50 dark:bg-violet-900/30", border: "border-violet-200 dark:border-violet-800/40", ic: "text-primary",       tc: "text-violet-700 dark:text-violet-300" },
+            { icon: Trophy, label: "Streak +1",     bg: "bg-amber-50 dark:bg-amber-900/20",  border: "border-amber-200 dark:border-amber-800/40",   ic: "text-amber-500",     tc: "text-amber-700 dark:text-amber-300" },
+            { icon: Gift,   label: "Тэмдэгт",       bg: "bg-emerald-50 dark:bg-emerald-900/20", border: "border-emerald-200 dark:border-emerald-800/40", ic: "text-emerald-600", tc: "text-emerald-700 dark:text-emerald-300" },
           ].map(b => (
             <div key={b.label} className={cn("flex flex-col items-center gap-1 rounded-2xl border p-2.5 w-[72px]", b.bg, b.border)}>
               <div className="w-8 h-8 rounded-xl bg-card flex items-center justify-center shadow-sm">

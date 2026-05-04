@@ -53,17 +53,17 @@ export default async function InstructorDashboardPage() {
           <div>
             <p className="text-violet-300 text-sm font-medium mb-1">Сайн байна уу,</p>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight mb-3">
-              {firstName} <span className="wave">👋</span>
+              {firstName}
             </h1>
             <div className="flex flex-wrap gap-2">
               {[
-                { emoji: "📚", value: analytics.totalCourses,   label: "Курс" },
-                { emoji: "👥", value: analytics.totalStudents,  label: "Оюутан" },
-                { emoji: "⭐", value: `${analytics.averageRating.toFixed(1)}/5`, label: "Үнэлгээ" },
+                { Icon: BookOpen, value: analytics.totalCourses,   label: "Курс" },
+                { Icon: Users,    value: analytics.totalStudents,  label: "Оюутан" },
+                { Icon: Star,     value: `${analytics.averageRating.toFixed(1)}/5`, label: "Үнэлгээ" },
               ].map(p => (
                 <div key={p.label}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-sm">
-                  <span>{p.emoji}</span>
+                  <p.Icon size={13} className="text-violet-200" />
                   <span className="font-bold">{p.value}</span>
                   <span className="text-violet-200 text-xs">{p.label}</span>
                 </div>

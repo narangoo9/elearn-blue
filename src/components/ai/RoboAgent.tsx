@@ -1,172 +1,280 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { Calendar, Flame, Send, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import type { AgentAction } from "@/lib/agent/agent-types";
+import { AiAgentButton } from "@/components/ai-agent/AiAgentButton";
+import { AiAgentPanel } from "@/components/ai-agent/AiAgentPanel";
+import type { ChatMessage } from "@/components/ai-agent/AiAgentMessage";
+
+// ── Storage ───────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = "edunity-ai-agent-chat";
+const MAX_HISTORY = 50;
+
+function loadMessages(): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as ChatMessage[];
+    return Array.isArray(parsed) ? parsed.slice(-MAX_HISTORY) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMessages(msgs: ChatMessage[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs.slice(-MAX_HISTORY)));
+  } catch {
+    // ignore quota errors
+  }
+}
+
+// ── Page context ──────────────────────────────────────────────────────────────
+
+function getPageContext(pathname: string): string {
+  if (pathname === "/student" || pathname === "/student/") return "dashboard";
+  if (pathname.startsWith("/student/courses")) return "lessons";
+  if (pathname.startsWith("/student/catalog")) return "catalog";
+  if (pathname.startsWith("/student/progress")) return "skill-graph";
+  if (pathname.startsWith("/student/leaderboard")) return "leaderboard";
+  if (pathname.startsWith("/student/upgrade")) return "pricing";
+  return "dashboard";
+}
+
+function getCourseIdFromPath(pathname: string): string | undefined {
+  const m = pathname.match(/\/courses\/([^/]+)/);
+  return m?.[1];
+}
+
+function getLessonIdFromPath(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const params = new URLSearchParams(window.location.search);
+  return params.get("lessonId") ?? undefined;
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 interface RoboAgentProps {
   firstName?: string;
+  level?: number;
+  xp?: number;
+  streak?: number;
 }
 
-export function RoboAgent({ firstName = "Student" }: RoboAgentProps) {
+export function RoboAgent({
+  firstName = "Student",
+  level = 1,
+  xp = 0,
+  streak = 0,
+}: RoboAgentProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const shouldReduce = useReducedMotion();
+
   const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(false);
+  const [showQuickActions, setShowQuickActions] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
+  const [latestAssistantId, setLatestAssistantId] = useState<string | null>(null);
+
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const pageContext = getPageContext(pathname);
+
+  // Hydrate from localStorage after mount
+  useEffect(() => {
+    setMessages(loadMessages());
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
-    if (!open) return;
-    const timer = window.setTimeout(() => inputRef.current?.focus(), 120);
-    return () => window.clearTimeout(timer);
-  }, [open]);
+    if (!hydrated) return;
+    saveMessages(messages);
+  }, [messages, hydrated]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    setInput("");
+  useEffect(() => {
+    if (open) {
+      const t = window.setTimeout(
+        () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
+        80,
+      );
+      return () => clearTimeout(t);
+    }
+  }, [open, messages, loading]);
+
+  // ── Send message ──────────────────────────────────────────────────────────
+
+  const sendMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || loading) return;
+
+      const userMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: trimmed,
+        timestamp: Date.now(),
+      };
+
+      setMessages((prev) => [...prev, userMsg]);
+      setInput("");
+      setLoading(true);
+      setShowQuickActions(false);
+      setLatestAssistantId(null);
+
+      try {
+        const res = await fetch("/api/ai-agent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: trimmed,
+            pageContext,
+            courseId: getCourseIdFromPath(pathname),
+            lessonId: getLessonIdFromPath(),
+          }),
+        });
+
+        const data = (await res.json()) as {
+          reply?: string;
+          actions?: AgentAction[];
+          suggestions?: string[];
+          mode?: string;
+        };
+
+        const reply = data.reply ?? "Уучлаарай, хариу авч чадсангүй. Дахин оролдоно уу.";
+        const newId = crypto.randomUUID();
+        setLatestAssistantId(newId);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: newId,
+            role: "assistant",
+            content: reply,
+            timestamp: Date.now(),
+            actions: data.actions ?? [],
+            suggestions: data.suggestions ?? [],
+          },
+        ]);
+      } catch {
+        const errId = crypto.randomUUID();
+        setLatestAssistantId(errId);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: errId,
+            role: "assistant",
+            content:
+              "Уучлаарай, AI Agent түр ажиллахгүй байна. Гэхдээ чи өнөөдөр нэг хичээлээ үргэлжлүүлэхийг санал болгож байна 🔥",
+            timestamp: Date.now(),
+            actions: [
+              {
+                label: "Хичээл харах",
+                type: "navigate",
+                href: "/student/courses",
+                variant: "primary",
+              },
+            ],
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loading, pageContext, pathname],
+  );
+
+  const handleSend = () => sendMessage(input);
+  const handleQuickAction = (prompt: string) => sendMessage(prompt);
+  const clearChat = () => {
+    setMessages([]);
+    setLatestAssistantId(null);
+    setShowQuickActions(true);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
   };
+
+  // Panel spring transition
+  const panelTransition = shouldReduce
+    ? { duration: 0.15 }
+    : { type: "spring" as const, damping: 28, stiffness: 340 };
 
   return (
     <>
-      {open && (
-        <div
-          role="dialog"
-          aria-label="AI Mentor"
-          className="fixed bottom-[92px] right-5 z-[9999] w-[340px] max-w-[calc(100vw-32px)] animate-slide-up rounded-3xl border border-violet-200 bg-white shadow-2xl shadow-violet-500/20 dark:border-violet-800/50 dark:bg-[#13102a]"
-        >
-          <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-violet-600">
-              <Image
-                src="/brand/ai_agent_icon.png"
-                alt=""
-                width={46}
-                height={46}
-                className="scale-125 object-contain"
-                priority
-              />
-            </div>
-            <p className="min-w-0 flex-1 text-[15px] font-black text-foreground">AI Mentor</p>
-            <button
-              onClick={() => setOpen(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Close AI Mentor"
-            >
-              <X size={15} />
-            </button>
-          </div>
-
-          <div className="max-h-[min(620px,calc(100vh-132px))] space-y-3 overflow-y-auto p-4">
-            <div className="rounded-2xl border border-violet-100 bg-white p-3.5 dark:border-violet-800/30 dark:bg-violet-900/10">
-              <p
-                className="text-[14px] font-black"
-                style={{
-                  background: "linear-gradient(90deg,#7c3aed,#ec4899)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                Сайн уу, {firstName}! 👋
-              </p>
-              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                Би чамд сурах аялалд туслах AI туслах байна.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-3.5 dark:border-violet-800/30 dark:bg-violet-900/10">
-              <div className="mb-2 flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-600">
-                  <Calendar size={14} className="text-white" />
-                </div>
-                <span className="text-[12px] font-black text-foreground">Өнөөдрийн санал</span>
-              </div>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Python хичээлийн дараагийн сэдвийг үзэхэд тохиромжтой!
-              </p>
-              <Link
-                href="/student/courses"
-                className="mt-3 flex w-full items-center justify-center rounded-xl bg-violet-600 py-2 text-[12px] font-black text-white shadow-md shadow-violet-500/20 transition-colors hover:bg-violet-500"
-                onClick={() => setOpen(false)}
-              >
-                Үргэлжлүүлэх →
-              </Link>
-            </div>
-
-            <div className="flex items-start gap-2 rounded-2xl border border-orange-100 bg-orange-50/70 p-3 dark:border-orange-800/30 dark:bg-orange-900/10">
-              <Flame size={16} className="mt-0.5 shrink-0 fill-orange-500 text-orange-500" />
-              <div>
-                <p className="text-[12px] font-black text-foreground">Streak-ийг хадгал!</p>
-                <p className="text-[11px] text-muted-foreground">Өнөөдөр хичээл үзээрэй.</p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-500/15">
-                    <Calendar size={14} className="text-violet-600 dark:text-violet-400" />
-                  </div>
-                  <span className="text-[12px] font-black text-foreground">Өнөөдрийн зорилго</span>
-                </div>
-                <span className="text-[11px] text-muted-foreground">0/1</span>
-              </div>
-              <p className="mb-2 text-[11px] text-muted-foreground">1 хичээл дуусгах</p>
-              <div className="h-1.5 overflow-hidden rounded-full bg-violet-100 dark:bg-violet-900/30">
-                <div className="h-full w-0 rounded-full bg-gradient-to-r from-violet-500 to-purple-400" />
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-center text-[11px] italic text-muted-foreground">
-                Асуулт байна уу? Намаас асуугаарай! 🤖
-              </p>
-              <div className="flex items-center gap-2 rounded-2xl border border-border bg-muted/40 px-3 py-2">
-                <input
-                  ref={inputRef}
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") handleSend();
-                  }}
-                  placeholder="Асуултаа бичнэ үү..."
-                  className="min-w-0 flex-1 bg-transparent text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={!input.trim()}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white transition-colors hover:bg-violet-500 disabled:opacity-40"
-                  aria-label="Send AI Mentor message"
-                >
-                  <Send size={13} />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="absolute -bottom-[9px] right-7 h-0 w-0 border-l-[9px] border-r-[9px] border-t-[10px] border-l-transparent border-r-transparent border-t-white dark:border-t-[#13102a]" />
-        </div>
-      )}
-
-      <button
-        onClick={() => setOpen((value) => !value)}
-        className={cn(
-          "fixed bottom-5 right-5 z-[9999] flex h-16 w-16 items-center justify-center rounded-full",
-          "bg-gradient-to-br from-violet-500 via-purple-600 to-fuchsia-500 shadow-xl shadow-violet-500/30",
-          "transition-all hover:scale-105 active:scale-95",
+      {/* Mobile backdrop */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[9990] bg-black/40 backdrop-blur-[2px] sm:hidden"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
         )}
-        aria-label="Open AI Mentor"
-        aria-expanded={open}
-        title="AI Mentor"
-      >
-        <Image
-          src="/brand/ai_agent_icon.png"
-          alt=""
-          width={60}
-          height={60}
-          className="scale-110 object-contain drop-shadow-sm"
-          priority
-        />
-        <span className="absolute right-0 top-0 h-4 w-4 rounded-full border-2 border-white bg-red-500 dark:border-[#09090b]" />
-      </button>
+      </AnimatePresence>
+
+      {/* ── AI Agent Panel ──────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            key="panel"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0, transition: panelTransition }}
+            exit={{ opacity: 0, y: 12, transition: { duration: 0.14, ease: "easeIn" } }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="EduNity AI Agent"
+            className={cn(
+              "fixed z-[9995] flex flex-col overflow-hidden",
+              "border border-violet-200/80 bg-white dark:border-violet-800/40 dark:bg-[#0f0c1f]",
+              "shadow-2xl shadow-violet-500/20 dark:shadow-violet-900/30",
+              // Desktop: right panel above button
+              "bottom-[88px] right-5 w-[360px] max-h-[calc(100vh-112px)] rounded-3xl",
+              // Mobile: bottom sheet
+              "max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:w-full max-sm:max-h-[88vh] max-sm:rounded-t-3xl max-sm:rounded-b-none",
+            )}
+          >
+            {/* Mobile drag handle */}
+            <div className="flex justify-center pt-2.5 pb-0.5 sm:hidden" aria-hidden="true">
+              <div className="h-1 w-10 rounded-full bg-muted-foreground/25" />
+            </div>
+
+            <AiAgentPanel
+              firstName={firstName.split(" ")[0]}
+              level={level}
+              xp={xp}
+              streak={streak}
+              messages={messages}
+              loading={loading}
+              input={input}
+              showQuickActions={showQuickActions}
+              pageContext={pageContext}
+              latestAssistantId={latestAssistantId}
+              onClose={() => setOpen(false)}
+              onSend={handleSend}
+              onInputChange={setInput}
+              onQuickAction={handleQuickAction}
+              onMessage={sendMessage}
+              onClearChat={clearChat}
+              onToggleQuickActions={() => setShowQuickActions((v) => !v)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Floating button ─────────────────────────────────────────────── */}
+      <AiAgentButton open={open} onClick={() => setOpen((v) => !v)} />
     </>
   );
 }

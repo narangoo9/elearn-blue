@@ -54,6 +54,17 @@ enum LessonType {
   LIVE_SESSION
 }
 
+enum LessonVideoType {
+  NONE
+  YOUTUBE
+  UPLOAD
+}
+
+enum LessonVideoProvider {
+  YOUTUBE
+  CUSTOM
+}
+
 enum EnrollmentStatus {
   ACTIVE
   EXPIRED
@@ -293,6 +304,8 @@ model User {
   friendshipsReceived  Friendship[]    @relation("FriendshipAddressee")
   // Phase 5: AI
   aiSessions           AiSession[]
+  // Saved courses (wishlist)
+  savedCourses         SavedCourse[]
 
   @@map("users")
 }
@@ -446,6 +459,7 @@ model Course {
   programCourses   ProgramCourse[]
   capstones        Capstone[]
   orderItems       OrderItem[]
+  savedBy          SavedCourse[]
 
   @@index([status, isFeatured])
   @@index([instructorId])
@@ -473,14 +487,24 @@ model Lesson {
   moduleId       String
   title          String
   description    String?    @db.Text
-  type           LessonType
-  contentUrl     String?
-  contentBody    String?    @db.Text
-  duration       Int?       // seconds
-  orderIndex     Int
-  isFree         Boolean    @default(false)
-  isLocked       Boolean    @default(false)
-  dripDays       Int?       // unlock after N days from enrollment
+  type             LessonType
+  contentUrl       String?
+  contentBody      String?    @db.Text
+  duration         Int?       // seconds
+  videoType        LessonVideoType @default(NONE)
+  videoUrl         String?
+  videoProvider    LessonVideoProvider?
+  sectionId        String?
+  startTimeSeconds Int?
+  endTimeSeconds   Int?
+  videoSegments    Json?
+  videoTasks       Json?
+  sourceCreditName String?
+  sourceCreditUrl  String?
+  orderIndex       Int
+  isFree           Boolean    @default(false)
+  isLocked         Boolean    @default(false)
+  dripDays         Int?       // unlock after N days from enrollment
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
@@ -1329,4 +1353,18 @@ model AiUsageLog {
 
   @@index([userId, createdAt])
   @@map("ai_usage_logs")
+}
+
+model SavedCourse {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  savedAt   DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId, savedAt(sort: Desc)])
+  @@map("saved_courses")
 }

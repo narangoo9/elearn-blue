@@ -4,12 +4,13 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import Link from "next/link";
 import {
-  BookOpen, CheckCircle2, Circle, Flame, Star, ArrowRight,
+  BookOpen, Circle, Flame, Star, ArrowRight,
   Calendar, Target, Zap, Clock,
 } from "lucide-react";
 import { RobotIllustration } from "@/components/brand/RobotIllustration";
 import { LearningArtwork } from "@/components/course/LearningArtwork";
 import { getCourses } from "@/modules/courses/infrastructure/queries";
+import { AIMentorChatClient } from "@/components/ai/AIMentorChatClient";
 
 export const metadata: Metadata = { title: "AI Ментор" };
 
@@ -74,7 +75,7 @@ export default async function AiMentorPage() {
           <span className="text-[11px] font-bold uppercase tracking-widest text-violet-300">
             {todayName} · AI Ментор
           </span>
-          <h1 className="mt-1 text-2xl font-black">Сайн уу, {firstName}! 🤖</h1>
+          <h1 className="mt-1 text-2xl font-black">Сайн уу, {firstName}!</h1>
           <p className="mt-1 text-sm text-violet-200">
             Өнөөдрийн суралцах төлөвлөгөөг бэлдлээ. Хамт явцгаая!
           </p>
@@ -92,78 +93,15 @@ export default async function AiMentorPage() {
         </div>
       </section>
 
+      {/* Chat + sidebar layout */}
       <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
-        <div className="space-y-4">
-          {/* Today's plan */}
-          <section className="rounded-2xl border border-border bg-card p-5" style={{ boxShadow: "var(--shadow-1)" }}>
-            <div className="mb-4 flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-500/15">
-                <Calendar size={15} className="text-violet-600 dark:text-violet-400" />
-              </div>
-              <h2 className="text-base font-bold text-foreground">Өнөөдрийн төлөвлөгөө</h2>
-              <span className="ml-auto text-[11px] text-muted-foreground">{todayName}</span>
-            </div>
-            <div className="space-y-2.5">
-              {DAILY_TASKS.map((task, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-3.5 py-2.5 transition-all hover:border-violet-200 hover:bg-violet-50/50 dark:hover:border-violet-800/40 dark:hover:bg-violet-500/5"
-                >
-                  <Circle size={16} className="shrink-0 text-violet-300 dark:text-violet-700" />
-                  <span className="flex-1 text-[13px] text-foreground">{task.label}</span>
-                  <div className="flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 dark:bg-violet-500/15">
-                    <Zap size={9} className="text-violet-600 dark:text-violet-400" />
-                    <span className="text-[10px] font-bold text-violet-700 dark:text-violet-300">+{task.xp} XP</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 text-center text-[11px] text-muted-foreground">
-              Бүх даалгавраа хийвэл нийт <span className="font-bold text-violet-600">+{DAILY_TASKS.reduce((s, t) => s + t.xp, 0)} XP</span> авна!
-            </p>
-          </section>
-
-          {/* Active courses */}
-          {enrollments.length > 0 && (
-            <section className="rounded-2xl border border-border bg-card p-5" style={{ boxShadow: "var(--shadow-1)" }}>
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-500/15">
-                    <BookOpen size={15} className="text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <h2 className="text-base font-bold text-foreground">Үргэлжлүүлэх хичээл</h2>
-                </div>
-                <Link href="/student/courses" className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:underline dark:text-violet-400">
-                  Бүгд <ArrowRight size={11} />
-                </Link>
-              </div>
-              <div className="space-y-2">
-                {enrollments.map(({ course }) => (
-                  <Link
-                    key={course.id}
-                    href={`/student/courses/${course.id}/learn`}
-                    className="group flex items-center gap-3 rounded-xl border border-border p-3 transition-all hover:border-violet-300 hover:shadow-sm dark:hover:border-violet-700/40"
-                  >
-                    <div className="h-10 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
-                      {course.thumbnailUrl ? (
-                        <img src={course.thumbnailUrl} alt={course.title} className="h-full w-full object-cover" />
-                      ) : (
-                        <LearningArtwork title={course.title} subtitle={course.instructor.name} badge="Course" compact className="h-full w-full" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[12px] font-bold text-foreground group-hover:text-violet-600 dark:group-hover:text-violet-400">{course.title}</p>
-                      <p className="text-[10px] text-muted-foreground">{course.instructor.name}</p>
-                    </div>
-                    <div className="flex items-center gap-1 rounded-lg bg-violet-50 px-2.5 py-1.5 text-[11px] font-bold text-violet-700 transition-colors group-hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-300 dark:group-hover:bg-violet-500/20">
-                      <Clock size={10} /> Үргэлжлүүлэх
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
+        {/* Left: Chat */}
+        <AIMentorChatClient
+          firstName={firstName}
+          level={level}
+          xp={xp}
+          streak={streak}
+        />
 
         {/* Right column */}
         <div className="space-y-4">
@@ -200,6 +138,70 @@ export default async function AiMentorPage() {
             </div>
           </div>
 
+          {/* Today's plan */}
+          <section className="rounded-2xl border border-border bg-card p-4" style={{ boxShadow: "var(--shadow-1)" }}>
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-500/15">
+                <Calendar size={13} className="text-violet-600 dark:text-violet-400" />
+              </div>
+              <h2 className="text-[13px] font-bold text-foreground">Өнөөдрийн даалгаврууд</h2>
+              <span className="ml-auto text-[10px] text-muted-foreground">{todayName}</span>
+            </div>
+            <div className="space-y-1.5">
+              {DAILY_TASKS.map((task, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2 transition-all hover:border-violet-200 hover:bg-violet-50/50 dark:hover:border-violet-800/40 dark:hover:bg-violet-500/5"
+                >
+                  <Circle size={12} className="shrink-0 text-violet-300 dark:text-violet-700" />
+                  <span className="flex-1 text-[11px] text-foreground">{task.label}</span>
+                  <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400">+{task.xp}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Active courses */}
+          {enrollments.length > 0 && (
+            <section className="rounded-2xl border border-border bg-card p-4" style={{ boxShadow: "var(--shadow-1)" }}>
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-500/15">
+                    <BookOpen size={13} className="text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <h2 className="text-[13px] font-bold text-foreground">Үргэлжлүүлэх</h2>
+                </div>
+                <Link href="/student/courses" className="flex items-center gap-1 text-[10px] font-semibold text-violet-600 hover:underline dark:text-violet-400">
+                  Бүгд <ArrowRight size={10} />
+                </Link>
+              </div>
+              <div className="space-y-1.5">
+                {enrollments.map(({ course }) => (
+                  <Link
+                    key={course.id}
+                    href={`/student/courses/${course.id}/learn`}
+                    className="group flex items-center gap-2.5 rounded-xl border border-border p-2.5 transition-all hover:border-violet-300 hover:shadow-sm dark:hover:border-violet-700/40"
+                  >
+                    <div className="h-8 w-11 shrink-0 overflow-hidden rounded-lg bg-muted">
+                      {course.thumbnailUrl ? (
+                        <img src={course.thumbnailUrl} alt={course.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <LearningArtwork title={course.title} subtitle={course.instructor.name} badge="Course" compact className="h-full w-full" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[11px] font-bold text-foreground group-hover:text-violet-600 dark:group-hover:text-violet-400">{course.title}</p>
+                      <div className="flex items-center gap-1 mt-0.5 text-violet-600 dark:text-violet-400">
+                        <Clock size={9} />
+                        <span className="text-[9px] font-semibold">Үргэлжлүүлэх</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Recommended */}
           <div className="rounded-2xl border border-border bg-card p-4" style={{ boxShadow: "var(--shadow-1)" }}>
             <div className="mb-3 flex items-center gap-2">
@@ -208,14 +210,14 @@ export default async function AiMentorPage() {
               </div>
               <h3 className="text-[13px] font-bold text-foreground">Санал болгох</h3>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {(recommended.courses ?? []).slice(0, 3).map((course) => (
                 <Link
                   key={course.id}
                   href={`/courses/${course.slug}`}
                   className="group flex items-center gap-2.5 rounded-xl p-2 transition-colors hover:bg-muted dark:hover:bg-white/5"
                 >
-                  <div className="h-9 w-12 shrink-0 overflow-hidden rounded-lg bg-muted">
+                  <div className="h-8 w-11 shrink-0 overflow-hidden rounded-lg bg-muted">
                     {course.thumbnailUrl ? (
                       <img src={course.thumbnailUrl} alt={course.title} className="h-full w-full object-cover" />
                     ) : (

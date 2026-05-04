@@ -48,13 +48,13 @@ export default async function AdminDashboardPage() {
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight mb-3">Админ самбар</h1>
             <div className="flex flex-wrap gap-2">
               {[
-                { emoji: "👤", value: overview.totalUsers,      label: "Хэрэглэгч" },
-                { emoji: "📚", value: overview.totalCourses,    label: "Курс" },
-                { emoji: "💰", value: formatCurrency(overview.totalRevenue), label: "Орлого" },
+                { Icon: Users,      value: overview.totalUsers,      label: "Хэрэглэгч" },
+                { Icon: BookOpen,   value: overview.totalCourses,    label: "Курс" },
+                { Icon: TrendingUp, value: formatCurrency(overview.totalRevenue), label: "Орлого" },
               ].map(p => (
                 <div key={p.label}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-sm">
-                  <span>{p.emoji}</span>
+                  <p.Icon size={13} className="text-purple-200" />
                   <span className="font-bold">{p.value}</span>
                   <span className="text-purple-200 text-xs">{p.label}</span>
                 </div>

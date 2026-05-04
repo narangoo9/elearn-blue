@@ -275,67 +275,89 @@ export function LeaderboardClient({
 
       {/* ── HERO CARD ────────────────────────────────────────────── */}
       <div
-        className="relative overflow-hidden rounded-3xl p-6 shadow-xl"
-        style={{ background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 45%, #6d28d9 75%, #5b21b6 100%)" }}
+        className="relative overflow-hidden rounded-3xl shadow-xl"
+        style={{ background: "linear-gradient(135deg, #3b0764 0%, #5b21b6 40%, #7c3aed 70%, #a855f7 100%)" }}
       >
-        {/* Decorative blobs */}
+        {/* Geometric background elements */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-10 -right-10 w-56 h-56 rounded-full bg-white/5" />
-          <div className="absolute -bottom-12 -left-8 w-44 h-44 rounded-full bg-white/5" />
-          <div className="absolute top-1/2 left-1/3 w-32 h-32 rounded-full bg-fuchsia-500/10 blur-2xl" />
+          <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/[0.04]" />
+          <div className="absolute -bottom-20 -left-12 w-56 h-56 rounded-full bg-white/[0.04]" />
+          <div className="absolute top-0 right-0 w-full h-full opacity-30"
+            style={{ backgroundImage: "radial-gradient(circle at 70% 50%, rgba(168,85,247,0.4) 0%, transparent 60%)" }} />
+          {/* Star dots */}
+          {["10%,15%","25%,70%","45%,25%","60%,80%","78%,35%","90%,60%"].map((pos, i) => (
+            <div key={i} className="absolute w-1 h-1 rounded-full bg-white/30"
+              style={{ left: pos.split(",")[0], top: pos.split(",")[1] }} />
+          ))}
         </div>
 
-        <div className="relative z-10 flex items-center justify-between gap-4">
-          {/* Left: text + tabs */}
-          <div className="flex-1 min-w-0">
-            <p className="text-violet-200 text-[11px] font-bold uppercase tracking-[0.2em] mb-1">
-              🏆 Долоо хоногийн тэмцэйн
-            </p>
-            <h1 className="text-[2rem] font-black text-white leading-tight mb-1.5">Ranking</h1>
-            <p className="text-[12px] text-violet-200/90 mb-5">
-              5 өдөр үлдсэн · TOP 3 →{" "}
-              <span className="text-yellow-300 font-bold">🏆 алтан badge · 500 gem</span>
-            </p>
-
-            {/* Tabs — glassmorphism inside hero */}
-            <div className="flex gap-1 p-1 rounded-2xl w-fit" style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)" }}>
-              {(["weekly", "global", "friends"] as Tab[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={cn(
-                    "px-4 py-1.5 rounded-xl text-[12px] font-bold transition-all duration-150",
-                    tab === t
-                      ? "bg-white text-violet-700 shadow-sm"
-                      : "text-white/70 hover:text-white hover:bg-white/15",
-                  )}
-                >
-                  {t === "weekly" ? "Weekly" : t === "friends" ? `Friends (${friendCount})` : "Global"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Right: mascot + speech bubble */}
-          <div className="shrink-0 relative hidden sm:flex flex-col items-end">
-            {/* Speech bubble */}
-            <div className="absolute -top-4 right-[110px] bg-white rounded-2xl rounded-br-sm px-3 py-2 shadow-lg max-w-[130px] z-20">
-              <p className="text-[10px] font-semibold text-gray-700 leading-snug">
-                Ахиц тус амжилт болдог! 🚀 Чи чадна!
+        <div className="relative z-10 p-5 sm:p-6">
+          {/* Top row: badge + mascot */}
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm rounded-full px-3 py-1 mb-3">
+                <Trophy size={11} className="text-yellow-300 fill-yellow-300" />
+                <span className="text-[11px] font-bold text-white/90 uppercase tracking-widest">Тэмцэйн</span>
+              </div>
+              <h1 className="text-[1.75rem] sm:text-[2rem] font-black text-white leading-tight">
+                Шилдэг суралцагчид
+              </h1>
+              <p className="text-[13px] text-violet-200/80 mt-1">
+                TOP 3 → <span className="text-yellow-300 font-bold">🥇 500 XP + алтан badge</span>
               </p>
-              {/* Bubble pointer */}
-              <span className="absolute right-3 -bottom-1.5 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-white" />
             </div>
-
-            {/* Mascot glow */}
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-yellow-400/30 blur-2xl scale-150 animate-hero-glow" />
+            <div className="relative shrink-0 hidden sm:block">
+              <div className="absolute inset-0 rounded-full bg-yellow-400/25 blur-2xl scale-150" />
               <MascotImage
                 variant="celebrate"
-                size={120}
+                size={110}
                 className="relative z-10 animate-float drop-shadow-2xl"
               />
             </div>
+          </div>
+
+          {/* Stats row — my current standing */}
+          {myEntry && (
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="rounded-2xl bg-white/10 backdrop-blur-sm px-3 py-2.5 text-center">
+                <p className="text-[18px] font-black text-white leading-none">
+                  {myCurrentRank ? `#${myCurrentRank}` : "—"}
+                </p>
+                <p className="text-[10px] text-violet-200/80 mt-0.5 font-medium">Миний байр</p>
+              </div>
+              <div className="rounded-2xl bg-white/10 backdrop-blur-sm px-3 py-2.5 text-center">
+                <p className="text-[18px] font-black text-yellow-300 leading-none">
+                  {(myCurrentXp ?? 0).toLocaleString()}
+                </p>
+                <p className="text-[10px] text-violet-200/80 mt-0.5 font-medium">XP</p>
+              </div>
+              <div className="rounded-2xl bg-white/10 backdrop-blur-sm px-3 py-2.5 text-center">
+                <p className="text-[18px] font-black text-white leading-none">
+                  {xpToNext ? `+${xpToNext.toLocaleString()}` : "🏆"}
+                </p>
+                <p className="text-[10px] text-violet-200/80 mt-0.5 font-medium">
+                  {xpToNext ? "Дараагийн байранд" : "Шилдэг!"}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div className="flex gap-1 p-1 rounded-2xl w-fit" style={{ background: "rgba(255,255,255,0.10)", backdropFilter: "blur(8px)" }}>
+            {(["weekly", "global", "friends"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={cn(
+                  "px-3 sm:px-4 py-1.5 rounded-xl text-[12px] font-bold transition-all duration-150",
+                  tab === t
+                    ? "bg-white text-violet-700 shadow-sm"
+                    : "text-white/70 hover:text-white hover:bg-white/15",
+                )}
+              >
+                {t === "weekly" ? "7 хоног" : t === "friends" ? `Найзууд (${friendCount})` : "Глобал"}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -393,7 +415,7 @@ export function LeaderboardClient({
               <div className="text-center py-12">
                 <Users size={28} className="mx-auto text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground">
-                  {tab === "friends" ? "No friends yet. Invite someone!" : "No data yet."}
+                  {tab === "friends" ? "Найз байхгүй байна. Нэгийг урина уу!" : "Мэдээлэл байхгүй."}
                 </p>
               </div>
             )}
@@ -499,7 +521,7 @@ export function LeaderboardClient({
             style={{ background: "linear-gradient(135deg, #f03e78 0%, #e64980 55%, #c2255c 100%)" }}
           >
             {copied ? <Check size={15} /> : <UserPlus size={15} />}
-            {copied ? "Copied!" : "✕ НАЙЗАА СОРЬ"}
+            {copied ? "Хуулагдлаа!" : "Найзаа урих"}
           </button>
 
           {inviteLink && (

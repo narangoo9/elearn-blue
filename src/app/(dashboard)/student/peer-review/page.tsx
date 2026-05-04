@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { PeerReviewClient } from "@/components/student/PeerReviewClient";
 
-export const metadata: Metadata = { title: "Peer Review — EduNity" };
+export const metadata: Metadata = { title: "Хамтран дүгнэх" };
 
 export default async function PeerReviewPage() {
   const session = await auth();

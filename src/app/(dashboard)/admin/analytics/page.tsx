@@ -66,7 +66,7 @@ export default async function AdminAnalyticsPage() {
         <StatsCard title="Нийт бүртгэл" value={overview.totalEnrollments} icon={TrendingUp} color="amber" />
         <StatsCard title="Нийт орлого" value={formatCurrency(overview.totalRevenue)} icon={DollarSign} color="green" />
         <StatsCard title="Сертификат" value={overview.totalCertificates} icon={Award} color="purple" />
-        <StatsCard title="Дундаж үнэлгээ" value={`${avgRating.toFixed(1)} ⭐`} icon={Star} color="amber" />
+        <StatsCard title="Дундаж үнэлгээ" value={`${avgRating.toFixed(1)}/5`} icon={Star} color="amber" />
       </div>
 
       {/* Extra KPIs */}

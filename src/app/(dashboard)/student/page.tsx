@@ -20,7 +20,7 @@ import { getStudentEnrolledCourses, getCourses } from "@/modules/courses/infrast
 import { MascotImage, type MascotVariant } from "@/components/brand/MascotImage";
 import { hasActiveCourseAccess } from "@/lib/subscription-access";
 import { LearningArtwork } from "@/components/course/LearningArtwork";
-import { DashboardTourWrapper } from "@/components/onboarding/DashboardTourWrapper";
+import { HeroBanner } from "@/components/dashboard/HeroBanner";
 import type { ElementType } from "react";
 
 export const metadata: Metadata = { title: "Dashboard - EduNity" };
@@ -31,8 +31,8 @@ const EMPTY_STATES: {
   mascot: MascotVariant;
 }[] = [
   {
-    title: "Гарчилгаа алга байна",
-    desc: "Шинэ хичээл дуусгаад гэрчилгэа аваарай!",
+    title: "Сертификат",
+    desc: "Шинэ хичээл дуусгаад гэрчилгээ аваарай!",
     link: "Хичээл үзэх",
     href: "/student/courses",
     BadgeIcon: Award,
@@ -110,6 +110,30 @@ export default async function StudentDashboardPage() {
 
   const firstName = session.user.name?.split(" ")[0] ?? "Student";
   const inProgress = enrollments.filter((e) => e.status !== "COMPLETED").slice(0, 2);
+  const inProgressIds = inProgress.map((e) => e.courseId);
+
+  // Fetch real progress data for in-progress courses
+  const [progressData, moduleData] = await Promise.all([
+    inProgressIds.length > 0
+      ? db.progress.groupBy({
+          by: ["courseId"],
+          where: { studentId: session.user.id, isCompleted: true, courseId: { in: inProgressIds } },
+          _count: true,
+        })
+      : Promise.resolve([] as { courseId: string; _count: number }[]),
+    inProgressIds.length > 0
+      ? db.courseModule.findMany({
+          where: { courseId: { in: inProgressIds } },
+          select: { courseId: true, _count: { select: { lessons: true } } },
+        })
+      : Promise.resolve([] as { courseId: string; _count: { lessons: number } }[]),
+  ]);
+
+  const progressLookup = new Map(progressData.map((p) => [p.courseId, p._count]));
+  const totalLessonsMap = new Map<string, number>();
+  moduleData.forEach((m) => {
+    totalLessonsMap.set(m.courseId, (totalLessonsMap.get(m.courseId) ?? 0) + m._count.lessons);
+  });
   const completionRate =
     stats.enrolledCourses > 0
       ? Math.round((stats.completedCourses / stats.enrolledCourses) * 100)
@@ -152,93 +176,20 @@ export default async function StudentDashboardPage() {
   return (
     <div className="max-w-5xl animate-fade-up space-y-5">
 
-      {/* ── HERO BANNER ── */}
-      <section
-        className="relative overflow-hidden rounded-3xl text-white"
-        style={{
-          background: "linear-gradient(135deg, #2f0f68 0%, #521a97 52%, #7c2fe4 100%)",
-          boxShadow: "var(--shadow-4)",
-        }}
-      >
-        {/* grid overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.08]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,.45) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.45) 1px,transparent 1px)",
-            backgroundSize: "42px 42px",
-          }}
-        />
-        {/* glow blobs */}
-        <div className="absolute right-[-42px] top-[-54px] h-56 w-56 rounded-full bg-fuchsia-300/22 blur-3xl" />
-        <div className="absolute bottom-[-74px] right-[10px] h-48 w-48 rounded-full bg-cyan-300/18 blur-3xl" />
-        <div className="absolute left-[-16px] top-[-8px] h-28 w-28 rounded-full bg-rose-200/16 blur-3xl" />
-
-        <div className="relative min-h-[184px] px-6 py-5 sm:pr-[230px] md:pr-[370px]">
-          <div className="max-w-xl">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-100/80">
-              Welcome back,
-            </p>
-            <h1 className="mt-1 text-[28px] font-black tracking-tight">
-              {firstName}! 👋
-            </h1>
-            <p className="mt-1 text-[14px] font-medium text-white/88">
-              Өнөөдөр 1 хичээл үргэлжлүүлье. Амжилт хүсье! 💜
-            </p>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {[
-                { icon: Trophy, value: stats.completedCourses, label: "Completed" },
-                { icon: BookOpen, value: stats.enrolledCourses, label: "Enrolled" },
-                { icon: Award, value: stats.certificates, label: "Certificates" },
-              ].map(({ icon: Icon, value, label }) => (
-                <div
-                  key={label}
-                  className="flex items-center gap-1.5 rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-[12px] font-medium backdrop-blur-sm"
-                >
-                  <Icon size={11} className="text-violet-200" />
-                  <span className="font-bold">{value}</span>
-                  <span className="text-violet-200">{label}</span>
-                </div>
-              ))}
-              {/* Dashboard tour trigger (client component — renders conditionally) */}
-              <DashboardTourWrapper />
-            </div>
-          </div>
-
-          {/* Mascot + speech bubble */}
-          <div className="pointer-events-none absolute inset-y-0 right-4 hidden w-[352px] md:block" aria-hidden="true">
-            {/* Speech bubble */}
-            <div className="absolute right-[154px] top-1/2 z-20 w-[176px] -translate-y-1/2 rounded-2xl rounded-br-sm bg-white px-3.5 py-3 shadow-[0_8px_28px_rgba(49,18,115,0.28)]">
-              <p className="text-[13px] font-black leading-snug text-gray-900">
-                Сайн уу!
-              </p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">
-                Өнөөдөр шинэ зүйл сурахад хамгийн сайхан өдөр шүү! 🚀
-              </p>
-              {/* tail */}
-              <div className="absolute -right-[8px] top-1/2 h-0 w-0 -translate-y-1/2 border-y-[7px] border-l-[8px] border-y-transparent border-l-white" />
-            </div>
-            <div className="absolute bottom-[-8px] right-1 z-10">
-              <MascotImage
-                variant="wave"
-                alt=""
-                size={188}
-                priority
-                className="animate-float"
-                imageClassName="drop-shadow-[0_20px_42px_rgba(9,4,34,0.42)]"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ── HERO BANNER (animated client component) ── */}
+      <HeroBanner
+        firstName={firstName}
+        completed={stats.completedCourses}
+        enrolled={stats.enrolledCourses}
+        certificates={stats.certificates}
+      />
 
       {/* ── STATS CARDS ── */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {STAT_CARDS.map((item) => (
           <div
             key={item.labelEn}
-            className="rounded-2xl border border-border bg-white p-4 transition-all duration-100 hover:-translate-y-0.5 hover:shadow-md dark:bg-card"
+            className="glow-card rounded-2xl border border-border bg-white p-4 dark:bg-card"
             style={{ boxShadow: "var(--shadow-1)" }}
           >
             <div className="mb-3 flex items-center justify-between">
@@ -260,12 +211,12 @@ export default async function StudentDashboardPage() {
       {/* ── CONTINUE LEARNING ── */}
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-foreground">Continue Learning</h2>
+          <h2 className="text-base font-bold text-foreground">Үргэлжлүүлэн суралцах</h2>
           <Link
             href="/student/courses"
             className="flex items-center gap-1 text-[12px] font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400"
           >
-            View all <ArrowRight size={12} />
+            Бүгдийг харах <ArrowRight size={12} />
           </Link>
         </div>
 
@@ -282,18 +233,22 @@ export default async function StudentDashboardPage() {
               href="/student/catalog"
               className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white shadow-md transition-colors hover:bg-violet-500"
             >
-              Browse Courses <ArrowRight size={12} />
+              Курс хайх <ArrowRight size={12} />
             </Link>
           </div>
         ) : (
           <div className="space-y-3">
-            {inProgress.map(({ course }) => (
+            {inProgress.map(({ course }) => {
+              const done = progressLookup.get(course.id) ?? 0;
+              const total = totalLessonsMap.get(course.id) ?? 0;
+              const percent = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+              return (
               <div
                 key={course.id}
                 className="group relative overflow-visible rounded-2xl border border-border bg-white shadow-sm transition-all hover:shadow-md dark:bg-card"
                 style={{ boxShadow: "var(--shadow-1)" }}
               >
-                <div className="flex items-center gap-4 p-5 pr-[210px]">
+                <div className="flex items-center gap-4 p-5 sm:pr-[210px]">
                   {/* Thumbnail */}
                   <div className="relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-2xl bg-muted">
                     {course.thumbnailUrl ? (
@@ -307,7 +262,7 @@ export default async function StudentDashboardPage() {
                       <LearningArtwork
                         title={course.title}
                         subtitle={course.instructor.name}
-                        badge="Course"
+                        badge="Курс"
                         className="h-full w-full"
                       />
                     )}
@@ -319,33 +274,37 @@ export default async function StudentDashboardPage() {
                     </p>
                     <p className="mb-3 text-[12px] text-muted-foreground">{course.instructor.name}</p>
                     <div className="flex items-center gap-2">
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-violet-100 dark:bg-violet-900/30">
-                        <div className="h-full w-[15%] rounded-full bg-gradient-to-r from-violet-600 to-purple-400" />
+                      <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-violet-100 dark:bg-violet-900/30">
+                        <div
+                          className="shimmer-bar relative h-full overflow-hidden rounded-full bg-gradient-to-r from-violet-600 to-purple-400 animate-progress transition-all duration-700"
+                          style={{ width: `${percent}%` }}
+                        />
                       </div>
-                      <span className="shrink-0 text-[11px] text-muted-foreground">15%</span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">{percent}%</span>
                     </div>
                     <Link
                       href={`/student/courses/${course.id}/learn`}
                       className="mt-2 inline-flex items-center gap-1 text-[12px] font-bold text-violet-600 transition-colors hover:text-violet-700 dark:text-violet-400"
                     >
-                      Resume Course <ArrowRight size={11} />
+                      Үргэлжлүүлэх <ArrowRight size={11} />
                     </Link>
                   </div>
                 </div>
 
                 {/* Mascot + speech bubble (right) */}
-                <div className="pointer-events-none absolute right-4 top-1/2 flex -translate-y-1/2 flex-col items-center gap-2">
+                <div className="pointer-events-none absolute right-4 top-1/2 hidden sm:flex -translate-y-1/2 flex-col items-center gap-2">
                   {/* Speech bubble */}
                   <div className="relative rounded-2xl rounded-b-2xl rounded-br-sm border border-border bg-white px-3 py-2.5 shadow-md dark:bg-card">
                     <p className="max-w-[136px] text-center text-[11px] font-semibold leading-snug text-foreground">
-                      Үргэлжлүүлээд ахицаа нэмээрэй! 💪
+                      Үргэлжлүүлээд ахицаа нэмээрэй!
                     </p>
                     <div className="absolute -bottom-[6px] left-1/2 h-0 w-0 -translate-x-1/2 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-white dark:border-t-card" />
                   </div>
                   <MascotImage variant="book" size={88} className="animate-float" />
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
@@ -357,13 +316,13 @@ export default async function StudentDashboardPage() {
             <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-500/15">
               <GraduationCap size={14} className="text-violet-600 dark:text-violet-400" />
             </div>
-            <h2 className="text-base font-bold text-foreground">Recommended For You</h2>
+            <h2 className="text-base font-bold text-foreground">Танд санал болгож буй</h2>
           </div>
           <Link
             href="/student/catalog"
             className="flex items-center gap-1 text-[12px] font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400"
           >
-            Browse all <ArrowRight size={12} />
+            Бүгдийг харах <ArrowRight size={12} />
           </Link>
         </div>
 
@@ -429,7 +388,7 @@ export default async function StudentDashboardPage() {
                   </div>
 
                   {/* Content */}
-                  <div className="relative flex min-w-0 flex-1 flex-col justify-between p-3.5 pr-[88px] sm:pr-[98px]">
+                  <div className="relative flex min-w-0 flex-1 flex-col justify-between p-3.5 pr-4 sm:pr-[98px]">
                     <div className="min-w-0">
                       <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                         <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold ${levelColors[course.level] ?? "bg-gray-100 text-gray-700"}`}>
@@ -457,7 +416,7 @@ export default async function StudentDashboardPage() {
                         <span className="text-[10px]">{course._count.enrollments} хичээл</span>
                       </div>
                     </div>
-                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 drop-shadow-[0_12px_24px_rgba(88,28,135,0.18)]">
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 drop-shadow-[0_12px_24px_rgba(88,28,135,0.18)] hidden sm:block">
                       <MascotImage
                         variant={mascotVariant}
                         size={80}
@@ -472,9 +431,9 @@ export default async function StudentDashboardPage() {
         )}
       </section>
 
-      {/* ── EMPTY STATES SECTION ── */}
+      {/* ── QUICK ACCESS SECTION ── */}
       <section>
-        <h2 className="mb-4 text-base font-bold text-foreground">Хоосон байсан хэсгүүд</h2>
+        <h2 className="mb-4 text-base font-bold text-foreground">Шуурхай хандалт</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {EMPTY_STATES.map((item) => (
             <div

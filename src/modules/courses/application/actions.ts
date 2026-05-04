@@ -13,6 +13,7 @@ import {
   updateCourseSchema,
   createModuleSchema,
   createLessonSchema,
+  updateLessonSchema,
   enrollCourseSchema,
   reorderLessonsSchema,
 } from "../domain/schemas";
@@ -21,6 +22,7 @@ import type {
   UpdateCourseInput,
   CreateModuleInput,
   CreateLessonInput,
+  UpdateLessonInput,
   EnrollCourseInput,
 } from "../domain/schemas";
 
@@ -193,12 +195,112 @@ export async function createLesson(input: CreateLessonInput) {
   const lesson = await db.lesson.create({
     data: {
       ...parsed.data,
+      contentUrl: parsed.data.contentUrl || null,
+      videoUrl: parsed.data.videoUrl || null,
+      videoProvider: parsed.data.videoProvider ?? null,
+      sourceCreditName: parsed.data.sourceCreditName || null,
+      sourceCreditUrl: parsed.data.sourceCreditUrl || null,
       orderIndex: (lastLesson?.orderIndex ?? -1) + 1,
     },
   });
 
   revalidatePath(`/instructor/courses/${module.courseId}/lessons`);
   return { success: true, data: lesson };
+}
+
+export async function updateLesson(lessonId: string, input: UpdateLessonInput) {
+  const session = await auth();
+  if (!session?.user) return { error: "Нэвтрэх шаардлагатай" };
+
+  const lesson = await db.lesson.findUnique({
+    where: { id: lessonId },
+    include: { module: { include: { course: true } } },
+  });
+
+  const canEdit =
+    lesson &&
+    (lesson.module.course.instructorId === session.user.id ||
+      session.user.role === "SUPER_ADMIN" ||
+      (session.user.role === "ORG_ADMIN" &&
+        lesson.module.course.organizationId === session.user.organizationId));
+  if (!canEdit) return { error: "Эрхгүй" };
+
+  const parsed = updateLessonSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
+
+  const d = parsed.data;
+  await db.lesson.update({
+    where: { id: lessonId },
+    data: {
+      ...d,
+      contentUrl: d.contentUrl === "" ? null : d.contentUrl,
+      videoUrl: d.videoUrl === "" ? null : d.videoUrl,
+      sectionId: d.sectionId === "" ? null : d.sectionId,
+      videoProvider: d.videoProvider ?? undefined,
+      sourceCreditName: d.sourceCreditName || null,
+      sourceCreditUrl: d.sourceCreditUrl === "" ? null : d.sourceCreditUrl,
+      // Treat 0 as null so YouTube embeds never get end=0
+      startTimeSeconds:
+        d.startTimeSeconds != null && d.startTimeSeconds > 0 ? d.startTimeSeconds : null,
+      endTimeSeconds:
+        d.endTimeSeconds != null && d.endTimeSeconds > 0 ? d.endTimeSeconds : null,
+    },
+  });
+
+  revalidatePath(`/instructor/courses/${lesson.module.courseId}`);
+  return { success: true };
+}
+
+/** One-shot fix: null out any lesson where startTimeSeconds=0 or endTimeSeconds=0. */
+export async function fixZeroTimeSegments(courseId: string) {
+  const session = await auth();
+  if (!session?.user) return { error: "Нэвтрэх шаардлагатай" };
+
+  const course = await db.course.findUnique({ where: { id: courseId } });
+  const canFix =
+    course &&
+    (course.instructorId === session.user.id ||
+      session.user.role === "SUPER_ADMIN" ||
+      (session.user.role === "ORG_ADMIN" &&
+        course.organizationId === session.user.organizationId));
+  if (!canFix) return { error: "Эрхгүй" };
+
+  const [fixedEnd, fixedStart] = await Promise.all([
+    db.lesson.updateMany({
+      where: { module: { courseId }, endTimeSeconds: 0 },
+      data: { endTimeSeconds: null },
+    }),
+    db.lesson.updateMany({
+      where: { module: { courseId }, startTimeSeconds: 0 },
+      data: { startTimeSeconds: null },
+    }),
+  ]);
+
+  revalidatePath(`/instructor/courses/${courseId}`);
+  return { success: true, fixed: fixedEnd.count + fixedStart.count };
+}
+
+export async function deleteLesson(lessonId: string) {
+  const session = await auth();
+  if (!session?.user) return { error: "Нэвтрэх шаардлагатай" };
+
+  const lesson = await db.lesson.findUnique({
+    where: { id: lessonId },
+    include: { module: { include: { course: true } } },
+  });
+
+  const canEdit =
+    lesson &&
+    (lesson.module.course.instructorId === session.user.id ||
+      session.user.role === "SUPER_ADMIN" ||
+      (session.user.role === "ORG_ADMIN" &&
+        lesson.module.course.organizationId === session.user.organizationId));
+  if (!canEdit) return { error: "Эрхгүй" };
+
+  await db.lesson.delete({ where: { id: lessonId } });
+
+  revalidatePath(`/instructor/courses/${lesson.module.courseId}`);
+  return { success: true };
 }
 
 export async function reorderLessons(input: { lessons: { id: string; orderIndex: number }[] }) {
@@ -333,8 +435,9 @@ export async function markLessonComplete(lessonId: string) {
       enrollmentId: enrollment.id,
       isCompleted: true,
       completedAt: new Date(),
+      lastAccessedAt: new Date(),
     },
-    update: { isCompleted: true, completedAt: new Date() },
+    update: { isCompleted: true, completedAt: new Date(), lastAccessedAt: new Date() },
   });
 
   // Check if course is completed
@@ -363,6 +466,23 @@ export async function markLessonComplete(lessonId: string) {
 
   revalidatePath(`/student/courses/${courseId}/learn`);
   return { success: true, courseCompleted };
+}
+
+export async function trackLessonView(lessonId: string, courseId: string, enrollmentId: string) {
+  const session = await auth();
+  if (!session?.user) return;
+  await db.progress.upsert({
+    where: { studentId_lessonId: { studentId: session.user.id, lessonId } },
+    create: {
+      studentId: session.user.id,
+      courseId,
+      lessonId,
+      enrollmentId,
+      isCompleted: false,
+      lastAccessedAt: new Date(),
+    },
+    update: { lastAccessedAt: new Date() },
+  });
 }
 
 async function generateCourseCertificate(studentId: string, courseId: string) {
@@ -490,3 +610,29 @@ async function checkAndIssueProgramCertificates(studentId: string, completedCour
   }
 }
 
+// ─── SAVE / UNSAVE COURSE ─────────────────────────────────────────────────────
+
+export async function toggleSavedCourse(courseId: string): Promise<{ saved: boolean }> {
+  const session = await auth();
+  if (!session?.user) throw new Error("Нэвтрэх шаардлагатай");
+
+  const existing = await db.savedCourse.findUnique({
+    where: { userId_courseId: { userId: session.user.id, courseId } },
+  });
+
+  if (existing) {
+    await db.savedCourse.delete({ where: { id: existing.id } });
+    revalidatePath("/student");
+    revalidatePath("/student/courses");
+    revalidatePath("/student/catalog");
+    revalidatePath("/student/saved");
+    return { saved: false };
+  } else {
+    await db.savedCourse.create({ data: { userId: session.user.id, courseId } });
+    revalidatePath("/student");
+    revalidatePath("/student/courses");
+    revalidatePath("/student/catalog");
+    revalidatePath("/student/saved");
+    return { saved: true };
+  }
+}

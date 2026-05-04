@@ -127,6 +127,8 @@ export async function getCourseBySlug(slug: string, studentId?: string) {
               title: true,
               type: true,
               duration: true,
+              videoType: true,
+              videoUrl: true,
               isFree: true,
               isLocked: true,
               orderIndex: true,
@@ -225,6 +227,7 @@ export async function getStudentEnrolledCourses(studentId: string) {
       course: {
         include: {
           instructor: { select: { id: true, name: true, avatarUrl: true } },
+          category: { select: { id: true, name: true } },
           _count: { select: { modules: true } },
         },
       },

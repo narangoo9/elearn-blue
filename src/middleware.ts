@@ -4,7 +4,7 @@ import { getDashboardHomeByRole } from "@/lib/dashboard-routes";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_ROUTES = ["/", "/courses", "/login", "/register", "/forgot-password", "/reset-password", "/verify-email"];
+const PUBLIC_ROUTES = ["/", "/courses", "/pricing", "/login", "/register", "/forgot-password", "/reset-password", "/verify-email"];
 const ADMIN_ROUTES = ["/admin"];
 const ORG_ROUTES = ["/org"];
 const INSTRUCTOR_ROUTES = ["/instructor"];

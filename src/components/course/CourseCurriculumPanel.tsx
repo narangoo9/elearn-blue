@@ -4,6 +4,8 @@ interface Lesson {
   id: string;
   title: string;
   duration: number | null;
+  videoType?: "NONE" | "YOUTUBE" | "UPLOAD" | null;
+  videoUrl?: string | null;
 }
 
 interface Module {
@@ -64,11 +66,16 @@ export function CourseCurriculumPanel({ modules, isUnlocked, totalLessons }: Pro
                         Locked
                       </span>
                     )}
-                    {lesson.duration && (
+                    {lesson.duration ? (
                       <span className="text-xs text-gray-400 tabular-nums">
                         {Math.ceil(lesson.duration / 60)}м
                       </span>
-                    )}
+                    ) : null}
+                    {lesson.videoType === "YOUTUBE" ? (
+                      <span className="text-[11px] font-semibold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">
+                        YouTube видео
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               ))}

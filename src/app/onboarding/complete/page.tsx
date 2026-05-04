@@ -115,7 +115,7 @@ export default function CompletePage() {
               transition={{ delay: 0.3, type: "spring" }}
               className="mb-1 text-2xl font-black text-foreground"
             >
-              Бэлэн боллоо! 🎉
+              Бэлэн боллоо!
             </motion.h1>
             <p className="text-[14px] text-muted-foreground">
               Чиний сурах зам бэлэн боллоо. Одоо эхний course-оо эхлүүлцгээе.

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import {
   BookOpen, CheckCircle2, Clock, ArrowRight,
-  TrendingUp, Star, BarChart2,
+  TrendingUp, Star, BarChart2, Zap,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { LearningArtwork } from "@/components/course/LearningArtwork";
@@ -74,27 +74,27 @@ export default async function StudentProgressPage() {
             {/* Left */}
             <div className="flex-1 min-w-0">
               <p className="text-violet-200 text-[11px] font-bold uppercase tracking-[0.18em] mb-1">
-                📈 Ахицын тойм
+                Ахицын тойм
               </p>
-              <h1 className="text-[2rem] font-black text-white leading-tight mb-1.5">
+              <h1 className="text-[1.5rem] sm:text-[2rem] font-black text-white leading-tight mb-1.5">
                 Миний ахиц
               </h1>
               <p className="text-violet-200/90 text-[13px] mb-5">
-                Өдөр бүр ахиж, зорилгодоо ойртож байна 🚀
+                Өдөр бүр ахиж, зорилгодоо ойртож байна
               </p>
 
               {/* Stat pills */}
               <div className="flex gap-2 mb-6 flex-wrap">
                 {[
-                  { value: active.length,    label: "идэвхтэй",  icon: "⚡", bg: "bg-violet-500/40" },
-                  { value: completed.length, label: "дуусгасан", icon: "✅", bg: "bg-emerald-500/30" },
-                  { value: overallTotal,     label: "нийт курс", icon: "📚", bg: "bg-white/10" },
+                  { value: active.length,    label: "идэвхтэй",  Icon: Zap,          bg: "bg-violet-500/40",  iconCls: "text-yellow-300" },
+                  { value: completed.length, label: "дуусгасан", Icon: CheckCircle2,  bg: "bg-emerald-500/30", iconCls: "text-emerald-200" },
+                  { value: overallTotal,     label: "нийт курс", Icon: BookOpen,      bg: "bg-white/10",       iconCls: "text-violet-200" },
                 ].map((s) => (
                   <div
                     key={s.label}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${s.bg} backdrop-blur-sm`}
                   >
-                    <span className="text-sm">{s.icon}</span>
+                    <s.Icon size={13} className={s.iconCls} />
                     <span className="text-white font-black text-[15px]">{s.value}</span>
                     <span className="text-violet-200 text-[11px] font-medium">{s.label}</span>
                   </div>
@@ -127,7 +127,7 @@ export default async function StudentProgressPage() {
               {/* Speech bubble */}
               <div className="absolute -top-3 right-[106px] bg-white rounded-2xl rounded-br-sm px-3 py-2 shadow-lg max-w-[148px] z-20">
                 <p className="text-[10px] font-semibold text-gray-700 leading-snug">
-                  Өдөр бүр суралцвал ахиц тод харагдана! 📈
+                  Өдөр бүр суралцвал ахиц тод харагдана!
                 </p>
                 <span className="absolute right-3 -bottom-1.5 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-white" />
               </div>
@@ -190,7 +190,7 @@ export default async function StudentProgressPage() {
                   <h3 className="text-[13px] font-black text-foreground">Ахицын график</h3>
                 </div>
                 <p className="text-[11px] text-muted-foreground mb-4">
-                  Сүүлийн 7 хоногийн ахиц 🔥
+                  Сүүлийн 7 хоногийн ахиц
                 </p>
 
                 <WeeklyChart />
@@ -292,7 +292,7 @@ function ActiveCourseCard({
           <LearningArtwork
             title={title}
             subtitle={instructor}
-            badge="Lesson"
+            badge="Хичээл"
             compact
             className="h-full w-full"
           />
@@ -333,7 +333,7 @@ function ActiveCourseCard({
         <div className="shrink-0 hidden lg:flex flex-col items-center relative">
           <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-violet-50 dark:bg-violet-900/30 border border-violet-100 dark:border-violet-800/40 rounded-2xl rounded-bl-sm px-2.5 py-1.5 whitespace-nowrap z-10 shadow-sm">
             <p className="text-[9px] font-semibold text-violet-700 dark:text-violet-300 leading-snug">
-              Жаахан ахиц ч том үр дүн шүү! 💪
+              Жаахан ахиц ч том үр дүн шүү!
             </p>
             <span className="absolute left-3 -bottom-1.5 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-violet-50 dark:border-t-[#1e1038]" />
           </div>
@@ -365,7 +365,7 @@ function CompletedCourseCard({
           <LearningArtwork
             title={title}
             subtitle={instructor}
-            badge="Done"
+            badge="Дууссан"
             className="h-full w-full"
           />
         )}
@@ -483,7 +483,7 @@ function RecommendedCard() {
             Дараагийн санал болгож буй курс
           </h3>
           <p className="text-[12px] text-muted-foreground mb-4">
-            Шинэ ур чадвар нэмж, ахицаа тасралтгүй дэмж 🚀
+            Шинэ ур чадвар нэмж, ахицаа тасралтгүй дэмж
           </p>
           <Link
             href="/student/catalog"

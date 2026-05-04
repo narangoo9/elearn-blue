@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
   BookOpen,
@@ -24,17 +26,19 @@ import {
   Flame,
   GitMerge,
   ChevronLeft,
-  ChevronRight,
   Menu,
   Sparkles,
+  User,
+  LogOut,
 } from "lucide-react";
-import { MascotImage } from "@/components/brand/MascotImage";
 import type { ElementType } from "react";
 import type { UserRole } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { isUpgradedStudentPlan } from "@/lib/subscription-access";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { settingsRouteByRole } from "@/lib/dashboard-routes";
 import { EduNityLogo } from "./EduNityLogo";
+import { useMobileSidebar } from "./DashboardLayoutClient";
 
 interface NavItem {
   labelKey: string;
@@ -49,9 +53,9 @@ const navConfig: Record<UserRole, NavItem[]> = {
   STUDENT: [
     { labelKey: "nav.overview", href: "/student", icon: LayoutDashboard },
     { labelKey: "nav.lessons", href: "/student/courses", icon: BookOpen },
+    { labelKey: "nav.catalog", href: "/student/catalog", icon: GraduationCap },
     { labelKey: "nav.leaderboard", href: "/student/leaderboard", icon: Trophy },
     { labelKey: "nav.skillGraph", href: "/student/progress", icon: BarChart3 },
-    { labelKey: "nav.catalog", href: "/student/catalog", icon: GraduationCap },
     { labelKey: "nav.messages", href: "/student/messages", icon: MessageSquare },
     { labelKey: "nav.notes", href: "/student/notes", icon: StickyNote },
     { labelKey: "nav.peerReview", href: "/student/peer-review", icon: GitMerge },
@@ -86,6 +90,13 @@ const navConfig: Record<UserRole, NavItem[]> = {
   ],
 };
 
+const ROLE_LABELS: Record<UserRole, string> = {
+  STUDENT: "Суралцагч",
+  INSTRUCTOR: "Багш",
+  ORG_ADMIN: "Байгууллага",
+  SUPER_ADMIN: "Супер Админ",
+};
+
 interface SidebarProps {
   role: UserRole;
   xp?: number;
@@ -93,6 +104,8 @@ interface SidebarProps {
   streak?: number;
   subscriptionPlan?: string | null;
   messagesBadge?: number;
+  userName?: string;
+  userAvatar?: string | null;
 }
 
 export function DashboardSidebar({
@@ -102,10 +115,14 @@ export function DashboardSidebar({
   streak = 0,
   subscriptionPlan,
   messagesBadge = 0,
+  userName = "",
+  userAvatar = null,
 }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useLanguage();
   const [collapsed, setCollapsed] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const { mobileOpen, closeSidebar } = useMobileSidebar();
   const items = navConfig[role];
   const isPremium = isUpgradedStudentPlan(subscriptionPlan);
   const isItemActive = (href: string) =>
@@ -124,10 +141,25 @@ export function DashboardSidebar({
       : Math.min(100, Math.round(((xp - xpPrev) / (xpNext - xpPrev)) * 100));
 
   return (
+    <>
+      {/* ── Mobile backdrop ─────────────────────────────── */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
+          onClick={closeSidebar}
+          aria-hidden="true"
+        />
+      )}
+
     <aside
       className={cn(
-        "relative flex h-full flex-shrink-0 flex-col border-r border-violet-100 bg-white transition-all duration-150 ease-in-out dark:border-violet-900/20 dark:bg-[#0d0b1f]",
-        collapsed ? "w-[72px]" : "w-[224px]",
+        "relative flex h-full flex-shrink-0 flex-col border-r border-violet-100 bg-white transition-all duration-300 ease-in-out dark:border-violet-900/20 dark:bg-[#0d0b1f]",
+        /* Desktop: normal inline sidebar */
+        "hidden md:flex",
+        collapsed ? "md:w-[72px]" : "md:w-[224px]",
+        /* Mobile: fixed overlay sliding in from the left */
+        "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[260px]",
+        mobileOpen ? "max-md:flex max-md:translate-x-0" : "max-md:-translate-x-full",
       )}
     >
       <div
@@ -144,10 +176,18 @@ export function DashboardSidebar({
         />
         <button
           onClick={() => setCollapsed((current) => !current)}
-          className="absolute -right-4 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-violet-200/80 bg-white text-violet-600 shadow-[0_6px_18px_rgba(124,58,237,0.14)] backdrop-blur-sm transition-colors duration-100 hover:bg-violet-50 dark:border-violet-400/20 dark:bg-slate-950 dark:text-violet-200 dark:shadow-[0_8px_20px_rgba(2,6,23,0.72)] dark:hover:bg-violet-500/15"
+          className="absolute -right-4 top-1/2 z-10 hidden md:flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-violet-200/80 bg-white text-violet-600 shadow-[0_6px_18px_rgba(124,58,237,0.14)] backdrop-blur-sm transition-colors duration-100 hover:bg-violet-50 dark:border-violet-400/20 dark:bg-slate-950 dark:text-violet-200 dark:shadow-[0_8px_20px_rgba(2,6,23,0.72)] dark:hover:bg-violet-500/15"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <Menu size={14} /> : <ChevronLeft size={14} />}
+        </button>
+        {/* Mobile-only close button */}
+        <button
+          onClick={closeSidebar}
+          className="absolute right-3 top-1/2 -translate-y-1/2 md:hidden flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+          aria-label="Хаах"
+        >
+          <ChevronLeft size={18} />
         </button>
       </div>
 
@@ -192,7 +232,7 @@ export function DashboardSidebar({
             {streak > 0 && (
               <div className="mt-1.5 flex items-center gap-1">
                 <Flame size={11} className="fill-orange-500 text-orange-500" />
-                <span className="text-[10px] font-semibold text-orange-500">{streak} day streak</span>
+                <span className="text-[10px] font-semibold text-orange-500">{streak} өдрийн streak</span>
               </div>
             )}
           </>
@@ -311,7 +351,7 @@ export function DashboardSidebar({
         <div className="mb-2 mt-2 flex justify-center px-2">
           <Link
             href="/student/upgrade"
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-500 shadow-md shadow-violet-200 transition-transform hover:scale-105 dark:shadow-violet-900/50"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-500 shadow-md shadow-violet-200 transition-colors dark:shadow-violet-900/50"
             title="Upgrade"
           >
             <Crown size={16} className="text-yellow-300" />
@@ -319,37 +359,100 @@ export function DashboardSidebar({
         </div>
       )}
 
-      {/* ── Robot mascot card ── */}
-      {role === "STUDENT" && !collapsed && (
-        <div className="mx-3 mb-3 shrink-0">
-          <div className="group rounded-2xl border border-violet-200/60 bg-violet-50/80 p-3 dark:border-violet-800/30 dark:bg-violet-900/10">
-            <div className="flex items-center gap-2.5">
-              <MascotImage variant="wave" size={40} className="mascot-wave-on-hover shrink-0" />
-              <p className="text-[11px] font-semibold leading-snug text-foreground">
-                Би чамд туслахад бэлэн байна! 🤖
-              </p>
-            </div>
-            <Link
-              href="/student/ai-mentor"
-              className="mt-2.5 flex w-full items-center justify-center gap-1 rounded-xl bg-violet-600 py-2 text-[11px] font-bold text-white transition-colors hover:bg-violet-500"
-            >
-              AI Mentor руу явах →
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {role === "STUDENT" && collapsed && (
-        <div className="mb-3 flex justify-center px-2">
-          <Link
-            href="/student/ai-mentor"
-            title="AI Mentor"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-violet-200/60 bg-violet-50 transition-colors hover:bg-violet-100 dark:border-violet-800/30 dark:bg-violet-900/20"
+      {/* ── Profile section ──────────────────────────────────────────── */}
+      <div
+        className={cn(
+          "animate-profile-in relative shrink-0 border-t border-violet-100 dark:border-violet-900/20",
+          collapsed ? "px-2 py-2.5" : "px-3 py-2.5",
+        )}
+      >
+        {profileOpen && (
+          <div
+            className={cn(
+              "animate-dropdown absolute z-40 overflow-hidden rounded-2xl border border-violet-100 bg-white p-1.5 shadow-xl shadow-violet-200/70 dark:border-violet-800/40 dark:bg-[#13102a] dark:shadow-violet-950/50",
+              collapsed ? "bottom-2 left-full ml-2 w-44" : "bottom-full left-3 right-3 mb-2",
+            )}
           >
-            <MascotImage variant="wave" size={28} />
-          </Link>
-        </div>
-      )}
+            <Link
+              href={settingsRouteByRole[role]}
+              onClick={() => setProfileOpen(false)}
+              className="group flex items-center gap-2.5 rounded-xl px-3 py-2 text-[12px] font-bold text-foreground transition-colors hover:bg-violet-50 hover:text-violet-700 dark:hover:bg-violet-900/25 dark:hover:text-violet-300"
+            >
+              <User size={14} className="text-violet-500" />
+              Profile
+            </Link>
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="group mt-0.5 flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[12px] font-bold text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+            >
+              <LogOut size={14} />
+              Logout
+            </button>
+          </div>
+        )}
+
+        {collapsed ? (
+          <div className="flex flex-col items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setProfileOpen((current) => !current)}
+              title="Профайл"
+              aria-expanded={profileOpen}
+              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+            >
+              {userAvatar ? (
+                <Image
+                  src={userAvatar}
+                  alt={userName || "Profile"}
+                  width={36}
+                  height={36}
+                  className="h-9 w-9 rounded-full object-cover ring-2 ring-violet-300/50 dark:ring-violet-700/50 hover:ring-violet-500 transition-all"
+                />
+              ) : (
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 ring-2 ring-violet-300/50 dark:ring-violet-700/50 hover:ring-violet-500 transition-all">
+                  <span className="text-[13px] font-black text-white">
+                    {userName ? userName[0].toUpperCase() : "?"}
+                  </span>
+                </div>
+              )}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <button
+              type="button"
+              onClick={() => setProfileOpen((current) => !current)}
+              aria-expanded={profileOpen}
+              className="group flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-violet-50 dark:hover:bg-violet-900/20"
+            >
+              {userAvatar ? (
+                <Image
+                  src={userAvatar}
+                  alt={userName || "Profile"}
+                  width={32}
+                  height={32}
+                  className="h-8 w-8 shrink-0 rounded-full object-cover ring-2 ring-violet-300/50 dark:ring-violet-700/50"
+                />
+              ) : (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 ring-2 ring-violet-300/50 dark:ring-violet-700/50">
+                  <span className="text-[12px] font-black text-white">
+                    {userName ? userName[0].toUpperCase() : "?"}
+                  </span>
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12px] font-bold leading-tight text-foreground group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">
+                  {userName || "Хэрэглэгч"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">{ROLE_LABELS[role]}</p>
+              </div>
+              <User size={13} className="shrink-0 text-muted-foreground/60 group-hover:text-violet-600 transition-colors" />
+            </button>
+          </div>
+        )}
+      </div>
+
     </aside>
+  </>
   );
 }
