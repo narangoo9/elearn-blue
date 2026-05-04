@@ -18,6 +18,7 @@ import {
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { MascotImage, type MascotVariant } from "@/components/brand/MascotImage";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 // ── TYPES ──────────────────────────────────────────────────────────────────────
 type CheckItem = { id: string; text: string; done: boolean };
@@ -56,35 +57,40 @@ const COLOR_DOT: Record<NoteColor, string> = {
 };
 
 const COL_CONFIG: Record<BoardCol, {
-  label: string;
+  labelKey: string;
   color: string;
   headerBg: string;
   dot: string;
   badgeBg: string;
+  emptyKey: string;
 }> = {
   todo: {
-    label: "Хийх",
+    labelKey: "notes.col.todo",
+    emptyKey: "notes.emptyTodo",
     color: "text-amber-700 dark:text-amber-300",
     headerBg: "bg-amber-50 border border-amber-100 dark:bg-amber-900/20 dark:border-amber-800/30",
     dot: "bg-amber-400",
     badgeBg: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   },
   inprogress: {
-    label: "Хийж байна",
+    labelKey: "notes.col.inprogress",
+    emptyKey: "notes.emptyInprogress",
     color: "text-blue-700 dark:text-blue-300",
     headerBg: "bg-blue-50 border border-blue-100 dark:bg-blue-900/20 dark:border-blue-800/30",
     dot: "bg-blue-400",
     badgeBg: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
   },
   review: {
-    label: "Шалгаж байна",
+    labelKey: "notes.col.review",
+    emptyKey: "notes.emptyReview",
     color: "text-violet-700 dark:text-violet-300",
     headerBg: "bg-violet-50 border border-violet-100 dark:bg-violet-900/20 dark:border-violet-800/30",
     dot: "bg-violet-400",
     badgeBg: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
   },
   done: {
-    label: "Дууссан",
+    labelKey: "notes.col.done",
+    emptyKey: "notes.emptyDone",
     color: "text-emerald-700 dark:text-emerald-300",
     headerBg: "bg-emerald-50 border border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800/30",
     dot: "bg-emerald-400",
@@ -267,6 +273,7 @@ function SortableCheckItem({
 
 // ── ADD CHECK ITEM INPUT ───────────────────────────────────────────────────────
 function AddCheckItem({ onAdd }: { onAdd: (text: string) => void }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [val,  setVal]  = useState("");
 
@@ -282,7 +289,7 @@ function AddCheckItem({ onAdd }: { onAdd: (text: string) => void }) {
         onClick={() => setOpen(true)}
         className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors mt-1 pl-1"
       >
-        <Plus size={10} /> Add item
+        <Plus size={10} /> {t("notes.addCheckItem")}
       </button>
     );
   }
@@ -298,7 +305,7 @@ function AddCheckItem({ onAdd }: { onAdd: (text: string) => void }) {
           if (e.key === "Escape") { setVal(""); setOpen(false); }
         }}
         onBlur={() => { if (!val.trim()) setOpen(false); }}
-        placeholder="Task нэмэх..."
+        placeholder={t("notes.addCheckPlaceholder")}
         className="flex-1 text-[11px] bg-muted rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground placeholder:text-muted-foreground"
       />
       <button
@@ -316,6 +323,7 @@ function AddCheckItem({ onAdd }: { onAdd: (text: string) => void }) {
 
 // ── DAILY GOALS CARD ───────────────────────────────────────────────────────────
 function DailyGoalsCard() {
+  const { t } = useLanguage();
   const [goals, setGoals] = useState([
     { id: "g1", text: "Web Dev Setup-ийн 1 дэд даалгавар хийх", done: true },
     { id: "g2", text: "UI/UX Design Notes унших дуусгах", done: false },
@@ -333,9 +341,9 @@ function DailyGoalsCard() {
         </div>
 
         <div className="flex-1 min-w-0">
-          <h2 className="text-[14px] font-black text-foreground mb-0.5">Өнөөдрийн зорилго</h2>
+          <h2 className="text-[14px] font-black text-foreground mb-0.5">{t("notes.dailyGoals")}</h2>
           <p className="text-[11px] text-muted-foreground mb-2.5">
-            Өнөөдөр 2 task хийвэл streak нэмэгдэнэ 🔥
+            {t("notes.dailyGoalsDesc")}
           </p>
           <div className="space-y-1">
             {goals.map(g => (
@@ -366,7 +374,7 @@ function DailyGoalsCard() {
             <span className="text-[16px] font-black text-amber-600 dark:text-amber-400 leading-none">{done}</span>
             <span className="text-[8px] text-amber-500 dark:text-amber-500 font-semibold">/{total}</span>
           </div>
-          <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400">Task</span>
+          <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400">{t("notes.taskLabel")}</span>
         </div>
       </div>
 
@@ -385,6 +393,7 @@ function DailyGoalsCard() {
 
 // ── REWARD PROGRESS ────────────────────────────────────────────────────────────
 function RewardProgress({ doneCount }: { doneCount: number }) {
+  const { t } = useLanguage();
   const target     = 3;
   const pct        = Math.min(100, Math.round((doneCount / target) * 100));
   const milestones = [1, 2, 3];
@@ -397,9 +406,9 @@ function RewardProgress({ doneCount }: { doneCount: number }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
             <Trophy size={14} className="text-amber-500 shrink-0" />
-            <h3 className="text-[14px] font-black text-foreground">Reward Progress</h3>
+            <h3 className="text-[14px] font-black text-foreground">{t("notes.rewardProgress")}</h3>
           </div>
-          <p className="text-[11px] text-muted-foreground mb-3">3 task дуусгавал XP авна!</p>
+          <p className="text-[11px] text-muted-foreground mb-3">{t("notes.rewardDesc")}</p>
 
           <div className="relative">
             <div className="flex-1 h-2 bg-accent dark:bg-violet-900/40 rounded-full overflow-hidden">
@@ -456,6 +465,7 @@ function CardItem({
   onDelete: (id: string) => void;
   isDragging?: boolean;
 }) {
+  const { t } = useLanguage();
   const [showColors,    setShowColors]    = useState(false);
   const [showMenu,      setShowMenu]      = useState(false);
   const [editTitle,     setEditTitle]     = useState(false);
@@ -565,14 +575,14 @@ function CardItem({
                     onClick={() => { fileRef.current?.click(); setShowMenu(false); }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-foreground hover:bg-muted transition-colors"
                   >
-                    <Camera size={12} className="text-muted-foreground" /> Cover photo
+                    <Camera size={12} className="text-muted-foreground" /> {t("notes.coverPhoto")}
                   </button>
                   <div>
                     <button
                       onClick={() => setShowColors(!showColors)}
                       className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-foreground hover:bg-muted transition-colors"
                     >
-                      <Palette size={12} className="text-muted-foreground" /> Card color
+                      <Palette size={12} className="text-muted-foreground" /> {t("notes.cardColor")}
                     </button>
                     {showColors && (
                       <div className="px-3 py-2 flex gap-1.5 flex-wrap border-t border-border">
@@ -595,7 +605,7 @@ function CardItem({
                       onClick={() => { onDelete(card.id); setShowMenu(false); }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                     >
-                      <Trash2 size={12} /> Delete card
+                      <Trash2 size={12} /> {t("notes.deleteCard")}
                     </button>
                   </div>
                 </div>
@@ -609,7 +619,7 @@ function CardItem({
           <textarea
             value={card.content}
             onChange={e => onUpdate(card.id, { content: e.target.value })}
-            placeholder="Тайлбар нэмэх..."
+            placeholder={t("notes.addContentPlaceholder")}
             rows={2}
             className="text-[11px] text-muted-foreground bg-transparent resize-none focus:outline-none w-full leading-relaxed placeholder:text-muted-foreground/40"
           />
@@ -731,6 +741,7 @@ function SortableCardItem({
 
 // ── MAIN COMPONENT ─────────────────────────────────────────────────────────────
 export function NotesClient({ userId }: { userId: string }) {
+  const { t } = useLanguage();
   const [notes,     setNotes]     = useState<NoteCard[]>(SAMPLE);
   const [activeId,  setActiveId]  = useState<string | null>(null);
   const [overColId, setOverColId] = useState<BoardCol | null>(null);
@@ -826,8 +837,8 @@ export function NotesClient({ userId }: { userId: string }) {
               <Image src="/assets/mascot/mascot-base.png" alt="" width={28} height={28} unoptimized className="object-contain" />
             </div>
             <div>
-              <h1 className="text-[20px] font-black text-foreground">My Learning Board</h1>
-              <p className="text-[12px] text-muted-foreground mt-0.5">Өдөр бүр бага багаар ахиц гаргая 🚀</p>
+              <h1 className="text-[20px] font-black text-foreground">{t("notes.boardTitle")}</h1>
+              <p className="text-[12px] text-muted-foreground mt-0.5">{t("notes.boardSubtitle")}</p>
             </div>
           </div>
 
@@ -835,7 +846,7 @@ export function NotesClient({ userId }: { userId: string }) {
             {totalTasks > 0 && (
               <div className="flex items-center gap-3 px-4 py-2.5 bg-card rounded-2xl border border-border shadow-sm">
                 <div className="flex flex-col items-end">
-                  <span className="text-[11px] text-muted-foreground">Нийт дэвшил</span>
+                  <span className="text-[11px] text-muted-foreground">{t("notes.overallProgress")}</span>
                   <span className="text-[18px] font-black text-primary leading-none">{donePct}%</span>
                 </div>
                 <div className="w-20 h-2.5 bg-accent dark:bg-violet-900/30 rounded-full overflow-hidden">
@@ -849,7 +860,7 @@ export function NotesClient({ userId }: { userId: string }) {
             <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 rounded-2xl">
               <MascotImage variant="fire" size={28} className="shrink-0" />
               <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 whitespace-nowrap">
-                Streak хадгалаарай 🔥
+                {t("notes.keepStreak")}
               </span>
             </div>
           </div>
@@ -886,7 +897,7 @@ export function NotesClient({ userId }: { userId: string }) {
                 <div className={cn("flex items-center justify-between px-3 py-2.5 rounded-2xl mb-3", cfg.headerBg)}>
                   <div className="flex items-center gap-2">
                     <div className={cn("w-2 h-2 rounded-full shrink-0", cfg.dot)} />
-                    <span className={cn("text-[12px] font-black", cfg.color)}>{cfg.label}</span>
+                    <span className={cn("text-[12px] font-black", cfg.color)}>{t(cfg.labelKey)}</span>
                     <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded-full", cfg.badgeBg)}>
                       {colNotes.length}
                     </span>
@@ -932,12 +943,10 @@ export function NotesClient({ userId }: { userId: string }) {
                         <MascotImage variant={COL_MASCOT[col]} size={40} className="opacity-40" />
                         <div className="text-center">
                           <p className="text-[12px] font-semibold text-muted-foreground">
-                            {col === "todo" ? "Шинэ зорилго нэмээрэй!" :
-                             col === "inprogress" ? "Ажилд ороорой!" :
-                             col === "review" ? "Шалгах зүйл алга" : "Дуусгасан зүйл алга"}
+                            {t(cfg.emptyKey)}
                           </p>
                           <p className="text-[10px] text-muted-foreground/50 flex items-center gap-0.5 justify-center mt-0.5">
-                            <Plus size={10} /> card нэмэх
+                            <Plus size={10} /> {t("notes.addCard")}
                           </p>
                         </div>
                       </button>
@@ -948,7 +957,7 @@ export function NotesClient({ userId }: { userId: string }) {
                         onClick={() => addNote(col)}
                         className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] text-muted-foreground hover:text-primary hover:bg-muted/50 transition-all border border-dashed border-transparent hover:border-border"
                       >
-                        <Plus size={12} /> Шинэ task нэмэх
+                        <Plus size={12} /> {t("notes.addNewTask")}
                       </button>
                     )}
                   </div>
