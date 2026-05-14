@@ -261,7 +261,12 @@ model User {
   coins             Int        @default(0)
   streak            Int        @default(0)
   level             Int        @default(1)
-  lastStreakAt       DateTime?
+  lastStreakAt              DateTime?
+  onboardingCompleted       Boolean    @default(false)
+  learningGoal              String?
+  onboardingSkippedAt       DateTime?
+  onboardingReminderSentAt  DateTime?
+  dashboardTourCompleted    Boolean    @default(false)
 
   // Relations
   organization      Organization?  @relation("OrgMembers", fields: [organizationId], references: [id])
@@ -344,8 +349,18 @@ model User {
   studyGroupMessages   StudyGroupMessage[]
   usersBlocked         UserBlock[]         @relation("Blocker")
   blockedByUsers       UserBlock[]         @relation("Blocked")
-  reportsSubmitted     UserReport[]        @relation("Reporter")
-  reportsReceived      UserReport[]        @relation("Reported")
+  reportsSubmitted              UserReport[]                    @relation("Reporter")
+  reportsReceived               UserReport[]                    @relation("Reported")
+  course_progresses             course_progresses[]
+  course_section_completions    course_section_completions[]
+  course_section_task_states    course_section_task_states[]
+  course_section_watch_progress course_section_watch_progress[]
+  learning_activities           learning_activities[]
+  lesson_chat_messages          lesson_chat_messages[]
+  notes                         notes[]
+  study_notes                   study_notes[]
+  submissions                   submissions[]
+  peer_reviews                  peer_reviews[]
 
   @@map("users")
 }
@@ -481,11 +496,16 @@ model Course {
   prerequisites    String[]
   learningOutcomes String[]
   isFeatured       Boolean      @default(false)
-  averageRating    Float        @default(0)
-  reviewCount      Int          @default(0)
+  averageRating    Float            @default(0)
+  reviewCount      Int              @default(0)
   publishedAt      DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  coverImage       String?
+  sourceType       CourseSourceType?
+  sourceYoutubeId  String?
+  sourceYoutubeUrl String?
+  durationSeconds  Int?
 
   // Relations
   organization     Organization?  @relation(fields: [organizationId], references: [id])
@@ -500,6 +520,10 @@ model Course {
   capstones        Capstone[]
   orderItems       OrderItem[]
   savedBy          SavedCourse[]
+  course_sections  course_sections[]
+  course_progresses course_progresses[]
+  lesson_chat_messages lesson_chat_messages[]
+  submissions      submissions[]
 
   @@index([status, isFeatured])
   @@index([instructorId])
@@ -548,10 +572,11 @@ model Lesson {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
-  module     CourseModule  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  resources  LessonResource[]
-  progress   Progress[]
-  quiz       Quiz?
+  module               CourseModule          @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  resources            LessonResource[]
+  progress             Progress[]
+  quiz                 Quiz?
+  lesson_chat_messages lesson_chat_messages[]
 
   @@map("lessons")
 }
@@ -1006,6 +1031,11 @@ enum XpAction {
   DAILY_CHALLENGE
   REVIEW_SUBMIT
   REFERRAL_SIGNUP
+  SECTION_COMPLETE
+  TASK_COMPLETE
+  NOTE_CREATE
+  FINAL_TASK_SUBMIT
+  PEER_REVIEW_COMPLETE
 }
 
 model UserBadge {
@@ -1643,4 +1673,324 @@ model UserReport {
 
   @@index([reportedId, status])
   @@map("user_reports")
+}
+
+// ── New enums from production ────────────────────────────────────────────────
+
+enum CertificateUnlockStatus {
+  LOCKED
+  UNLOCKED
+  ISSUED
+}
+
+enum CourseSourceType {
+  YOUTUBE
+}
+
+enum CourseWorkflowStage {
+  CHAPTERS
+  FINAL_TASK
+  PEER_REVIEW
+  CERTIFICATE
+  COMPLETED
+}
+
+enum FinalTaskStatus {
+  LOCKED
+  UNLOCKED
+  DRAFT
+  PENDING_REVIEW
+  PASSED
+  NEEDS_REVISION
+}
+
+enum PeerReviewStatus {
+  ASSIGNED
+  SUBMITTED
+}
+
+enum PeerReviewWorkflowStatus {
+  LOCKED
+  WAITING
+  IN_REVIEW
+  PASSED
+  NEEDS_REVISION
+}
+
+enum SubmissionAttachmentType {
+  PDF
+  ZIP
+  IMAGE
+}
+
+enum SubmissionStatus {
+  DRAFT
+  PENDING_REVIEW
+  PASSED
+  NEEDS_REVISION
+}
+
+// ── New models from production ───────────────────────────────────────────────
+
+model course_progresses {
+  id                       String                   @id @default(cuid())
+  userId                   String
+  courseId                 String
+  completedSections        Int                      @default(0)
+  totalSections            Int                      @default(0)
+  percent                  Int                      @default(0)
+  workflowStage            CourseWorkflowStage      @default(CHAPTERS)
+  finalTaskStatus          FinalTaskStatus          @default(LOCKED)
+  peerReviewStatus         PeerReviewWorkflowStatus @default(LOCKED)
+  certificateStatus        CertificateUnlockStatus  @default(LOCKED)
+  finalTaskUnlockedAt      DateTime?
+  finalTaskSubmittedAt     DateTime?
+  peerReviewCompletedAt    DateTime?
+  certificateUnlockedAt    DateTime?
+  peerReviewAverage        Float?
+  peerReviewCompletedCount Int                      @default(0)
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+
+  user   User   @relation(fields: [userId],   references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId, workflowStage])
+  @@index([userId, updatedAt])
+}
+
+model course_sections {
+  id           String   @id @default(cuid())
+  courseId     String
+  title        String
+  order        Int
+  startSeconds Int
+  endSeconds   Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  course                        Course                          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course_section_completions    course_section_completions[]
+  course_section_task_states    course_section_task_states[]
+  course_section_watch_progress course_section_watch_progress[]
+
+  @@unique([courseId, order])
+  @@unique([courseId, startSeconds])
+  @@index([courseId, order])
+}
+
+model course_section_completions {
+  id          String   @id @default(cuid())
+  sectionId   String
+  studentId   String
+  completedAt DateTime @default(now())
+
+  section course_sections @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  student User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, studentId])
+  @@index([studentId])
+}
+
+model course_section_task_states {
+  id          String    @id @default(cuid())
+  userId      String
+  courseId    String
+  sectionId   String
+  state       String    @default("not-started")
+  updatedAt   DateTime  @default(now())
+  xpAwarded   Boolean   @default(false)
+  completedAt DateTime?
+
+  user    User            @relation(fields: [userId],    references: [id], onDelete: Cascade)
+  section course_sections @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sectionId])
+  @@index([userId, courseId])
+}
+
+model course_section_watch_progress {
+  id              String   @id @default(cuid())
+  userId          String
+  courseId        String
+  sectionId       String
+  lastPositionSec Int      @default(0)
+  watchTimeSec    Int      @default(0)
+  lastWatchedAt   DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+
+  user    User            @relation(fields: [userId],    references: [id], onDelete: Cascade)
+  section course_sections @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sectionId])
+  @@index([userId, courseId])
+  @@index([userId, lastWatchedAt])
+}
+
+model learning_activities {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String?
+  lessonId  String?
+  sectionId String?
+  type      String
+  dedupeKey String?
+  metadata  Json?
+  xpAwarded Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, courseId])
+  @@index([userId, createdAt])
+}
+
+model lesson_chat_messages {
+  id        String    @id @default(cuid())
+  tenantId  String
+  companyId String?
+  courseId  String
+  lessonId  String
+  userId    String
+  text      String
+  replyToId String?
+  isDeleted Boolean   @default(false)
+  editedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  course  Course                 @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson  Lesson                 @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user    User                   @relation(fields: [userId],   references: [id], onDelete: Cascade)
+  replyTo lesson_chat_messages?  @relation("ChatReply", fields: [replyToId], references: [id])
+  replies lesson_chat_messages[] @relation("ChatReply")
+
+  @@index([courseId])
+  @@index([lessonId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model lesson_section_completions {
+  id          String   @id @default(cuid())
+  sectionId   String
+  studentId   String
+  completedAt DateTime @default(now())
+
+  @@unique([sectionId, studentId])
+  @@index([studentId])
+}
+
+model notes {
+  id         String   @id @default(cuid())
+  userId     String
+  col        String   @default("todo")
+  title      String   @default("New Card")
+  content    String   @default("")
+  checklist  Json     @default("[]")
+  color      String   @default("white")
+  coverImage String?
+  tags       String[] @default([])
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, col])
+}
+
+model study_notes {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  sectionId String?
+  seconds   Int      @default(0)
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, courseId])
+}
+
+model submissions {
+  id              String           @id @default(cuid())
+  courseId        String
+  studentId       String
+  title           String
+  description     String?
+  textAnswer      String?
+  githubUrl       String?
+  externalUrl     String?
+  status          SubmissionStatus @default(DRAFT)
+  reviewCount     Int              @default(0)
+  averageScore    Float?
+  likes           Int              @default(0)
+  views           Int              @default(0)
+  submittedAt     DateTime?
+  passedAt        DateTime?
+  needsRevisionAt DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  course                 Course                   @relation(fields: [courseId],  references: [id], onDelete: Cascade)
+  student                User                     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  peer_reviews           peer_reviews[]
+  submission_attachments submission_attachments[]
+
+  @@unique([studentId, courseId])
+  @@index([courseId, status, averageScore])
+  @@index([studentId, updatedAt])
+}
+
+model submission_attachments {
+  id           String                   @id @default(cuid())
+  submissionId String
+  type         SubmissionAttachmentType
+  url          String
+  fileName     String
+  mimeType     String?
+  size         Int?
+  publicId     String?
+  createdAt    DateTime                 @default(now())
+
+  submission submissions @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+}
+
+model peer_reviews {
+  id           String           @id @default(cuid())
+  submissionId String
+  reviewerId   String
+  status       PeerReviewStatus @default(ASSIGNED)
+  assignedAt   DateTime         @default(now())
+  submittedAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  submission submissions         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewer   User                @relation(fields: [reviewerId],   references: [id], onDelete: Cascade)
+  score      peer_review_scores?
+
+  @@unique([submissionId, reviewerId])
+  @@index([reviewerId, status])
+  @@index([submissionId, status])
+}
+
+model peer_review_scores {
+  id            String   @id @default(cuid())
+  peerReviewId  String   @unique
+  understanding Int
+  creativity    Int
+  completion    Int
+  average       Float
+  feedback      String
+  createdAt     DateTime @default(now())
+
+  peerReview peer_reviews @relation(fields: [peerReviewId], references: [id], onDelete: Cascade)
 }

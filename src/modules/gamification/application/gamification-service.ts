@@ -37,6 +37,11 @@ export const XP_REWARDS: Record<XpAction, number> = {
   DAILY_CHALLENGE: 25,
   REVIEW_SUBMIT: 5,
   REFERRAL_SIGNUP: 200,
+  SECTION_COMPLETE: 5,
+  TASK_COMPLETE: 15,
+  NOTE_CREATE: 3,
+  FINAL_TASK_SUBMIT: 30,
+  PEER_REVIEW_COMPLETE: 20,
 };
 
 // Level threshold — Purple-ын getLevelFromXP логик
