@@ -1,19 +1,30 @@
 import type { ElementType } from "react";
 import type { NotificationType } from "@prisma/client";
-import { Bell, CheckCircle2, BookOpen, Award, CreditCard, AlertCircle } from "lucide-react";
+import { Bell, CheckCircle2, BookOpen, Award, CreditCard, AlertCircle, UserPlus, Swords, Trophy, TrendingUp, Flame, Users, MessageCircle, Heart } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
 
 const typeConfig: Record<NotificationType, { icon: ElementType; color: string }> = {
-  ENROLLMENT_SUCCESS:  { icon: BookOpen,      color: "text-violet-600 bg-violet-100 dark:bg-violet-500/15" },
-  COURSE_PUBLISHED:    { icon: BookOpen,      color: "text-violet-600 bg-violet-100 dark:bg-violet-500/15" },
-  QUIZ_RESULT:         { icon: CheckCircle2,  color: "text-emerald-600 bg-emerald-100 dark:bg-emerald-500/15" },
-  CERTIFICATE_READY:   { icon: Award,         color: "text-amber-600 bg-amber-100 dark:bg-amber-500/15" },
-  PAYMENT_SUCCESS:     { icon: CreditCard,    color: "text-emerald-600 bg-emerald-100 dark:bg-emerald-500/15" },
-  PAYMENT_FAILED:      { icon: AlertCircle,   color: "text-red-600 bg-red-100 dark:bg-red-500/15" },
-  COURSE_REMINDER:     { icon: Bell,          color: "text-muted-foreground bg-muted" },
-  LIVE_CLASS_REMINDER: { icon: Bell,          color: "text-indigo-600 bg-indigo-100 dark:bg-indigo-500/15" },
-  SYSTEM:              { icon: Bell,          color: "text-muted-foreground bg-muted" },
+  ENROLLMENT_SUCCESS:  { icon: BookOpen,       color: "text-violet-600 bg-violet-100 dark:bg-violet-500/15" },
+  COURSE_PUBLISHED:    { icon: BookOpen,       color: "text-violet-600 bg-violet-100 dark:bg-violet-500/15" },
+  QUIZ_RESULT:         { icon: CheckCircle2,   color: "text-emerald-600 bg-emerald-100 dark:bg-emerald-500/15" },
+  CERTIFICATE_READY:   { icon: Award,          color: "text-amber-600 bg-amber-100 dark:bg-amber-500/15" },
+  PAYMENT_SUCCESS:     { icon: CreditCard,     color: "text-emerald-600 bg-emerald-100 dark:bg-emerald-500/15" },
+  PAYMENT_FAILED:      { icon: AlertCircle,    color: "text-red-600 bg-red-100 dark:bg-red-500/15" },
+  COURSE_REMINDER:     { icon: Bell,           color: "text-muted-foreground bg-muted" },
+  LIVE_CLASS_REMINDER: { icon: Bell,           color: "text-indigo-600 bg-indigo-100 dark:bg-indigo-500/15" },
+  SYSTEM:              { icon: Bell,           color: "text-muted-foreground bg-muted" },
+  NEW_FOLLOWER:        { icon: UserPlus,       color: "text-sky-600 bg-sky-100 dark:bg-sky-500/15" },
+  CHALLENGE_INVITE:    { icon: Swords,         color: "text-orange-600 bg-orange-100 dark:bg-orange-500/15" },
+  CHALLENGE_COMPLETED: { icon: Trophy,         color: "text-amber-600 bg-amber-100 dark:bg-amber-500/15" },
+  CHALLENGE_ACCEPTED:  { icon: Swords,         color: "text-orange-600 bg-orange-100 dark:bg-orange-500/15" },
+  LEADERBOARD_CHANGE:  { icon: TrendingUp,     color: "text-emerald-600 bg-emerald-100 dark:bg-emerald-500/15" },
+  BADGE_EARNED:        { icon: Award,          color: "text-amber-600 bg-amber-100 dark:bg-amber-500/15" },
+  STREAK_MILESTONE:    { icon: Flame,          color: "text-orange-600 bg-orange-100 dark:bg-orange-500/15" },
+  STUDY_GROUP_INVITE:  { icon: Users,          color: "text-sky-600 bg-sky-100 dark:bg-sky-500/15" },
+  STUDY_GROUP_MESSAGE: { icon: MessageCircle,  color: "text-sky-600 bg-sky-100 dark:bg-sky-500/15" },
+  ACTIVITY_LIKED:      { icon: Heart,          color: "text-rose-600 bg-rose-100 dark:bg-rose-500/15" },
+  ACTIVITY_COMMENTED:  { icon: MessageCircle,  color: "text-violet-600 bg-violet-100 dark:bg-violet-500/15" },
 };
 
 export async function NotificationsPageContent({ userId }: { userId: string }) {
