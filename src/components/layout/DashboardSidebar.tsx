@@ -30,6 +30,8 @@ import {
   Sparkles,
   User,
   LogOut,
+  Rss,
+  Sword,
 } from "lucide-react";
 import type { ElementType } from "react";
 import type { UserRole } from "@prisma/client";
@@ -59,6 +61,9 @@ const navConfig: Record<UserRole, NavItem[]> = {
     { labelKey: "nav.messages", href: "/student/messages", icon: MessageSquare },
     { labelKey: "nav.notes", href: "/student/notes", icon: StickyNote },
     { labelKey: "nav.peerReview", href: "/student/peer-review", icon: GitMerge },
+    { labelKey: "nav.feed", href: "/student/social/feed", icon: Rss },
+    { labelKey: "nav.challenges", href: "/student/social/challenges", icon: Sword },
+    { labelKey: "nav.studyGroups", href: "/student/study-groups", icon: Users },
     { labelKey: "nav.settings", href: "/student/settings", icon: Settings },
   ],
   INSTRUCTOR: [

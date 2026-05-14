@@ -5,6 +5,27 @@ import { BadgeType, XpAction } from "@prisma/client";
 import { invalidateCache, redis } from "@/lib/cache";
 import { revalidatePath } from "next/cache";
 import { revalidateUserDashboard, revalidateUserSidebar } from "@/lib/dashboard-cache";
+import {
+  onBadgeEarned,
+  onLevelUp,
+  onStreakMilestone,
+  onXpMilestone,
+  onCourseCompleted,
+} from "@/lib/social/activity-feed";
+
+const BADGE_NAMES: Record<BadgeType, string> = {
+  FIRST_LESSON:  "First Lesson",
+  FIRST_COURSE:  "First Course",
+  STREAK_7:      "7-Day Streak",
+  STREAK_30:     "30-Day Streak",
+  STREAK_100:    "100-Day Streak",
+  QUIZ_MASTER:   "Quiz Master",
+  SPEED_LEARNER: "Speed Learner",
+  TOP_10:        "Top 10",
+  COURSE_CREATOR:"Course Creator",
+  PERFECT_SCORE: "Perfect Score",
+  EARLY_BIRD:    "Early Bird",
+};
 
 // ── XP тооцооны тогтмолууд ──────────────────────────────────────────
 export const XP_REWARDS: Record<XpAction, number> = {
@@ -85,6 +106,15 @@ export async function awardXP(
   // Badge шалгах
   const newBadges = await checkAndAwardBadges(userId, action, result.xp);
 
+  // Social activity feed triggers (fire-and-forget)
+  if (leveledUp) onLevelUp(userId, newLevel).catch(() => {});
+  onXpMilestone(userId, result.xp).catch(() => {});
+  if (newBadges.length > 0) {
+    for (const badge of newBadges) {
+      onBadgeEarned(userId, badge, BADGE_NAMES[badge] ?? badge).catch(() => {});
+    }
+  }
+
   return { xp: result.xp, level: newLevel, leveledUp, newBadges };
 }
 
@@ -134,6 +164,7 @@ export async function updateStreak(userId: string): Promise<number> {
   }).then(async (newStreak) => {
     await awardXP(userId, XpAction.STREAK_BONUS);
     await checkStreakBadges(userId, newStreak);
+    onStreakMilestone(userId, newStreak).catch(() => {});
     return newStreak;
   });
 }
@@ -278,6 +309,15 @@ async function checkCourseCompletion(userId: string, courseId: string) {
       await db.userBadge
         .create({ data: { userId, badge: BadgeType.FIRST_COURSE } })
         .catch(() => null);
+    }
+
+    // Social activity feed — publish course completion
+    const course = await db.course.findUnique({
+      where: { id: courseId },
+      select: { title: true, slug: true },
+    });
+    if (course) {
+      onCourseCompleted(userId, courseId, course.title, course.slug).catch(() => {});
     }
   }
 }
